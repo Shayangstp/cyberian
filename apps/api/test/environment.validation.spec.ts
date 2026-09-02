@@ -12,6 +12,8 @@ describe('environment validation', () => {
       NODE_ENV: 'test',
       API_PORT: '4100',
       WEB_ORIGIN: 'http://localhost:5173',
+      DATABASE_URL:
+        'postgresql://application:development@localhost:5432/application',
     });
 
     expect(result.error).toBeUndefined();
@@ -19,6 +21,18 @@ describe('environment validation', () => {
       NODE_ENV: 'test',
       API_PORT: 4100,
       WEB_ORIGIN: 'http://localhost:5173',
+      DATABASE_URL:
+        'postgresql://application:development@localhost:5432/application',
     });
+  });
+
+  it('rejects a missing database URL', () => {
+    const result = environmentValidationSchema.validate({
+      NODE_ENV: 'test',
+      API_PORT: 4100,
+      WEB_ORIGIN: 'http://localhost:5173',
+    });
+
+    expect(result.error).toBeDefined();
   });
 });

@@ -12,7 +12,9 @@ RUN --mount=type=cache,id=pnpm-api,target=/pnpm/store \
 
 COPY apps/api apps/api
 COPY packages/shared packages/shared
-RUN pnpm --filter @cyberian/shared build && pnpm --filter @cyberian/api build
+RUN pnpm --filter @cyberian/api db:generate \
+    && pnpm --filter @cyberian/shared build \
+    && pnpm --filter @cyberian/api build
 
 EXPOSE 3000
 CMD ["pnpm", "--filter", "@cyberian/api", "start"]

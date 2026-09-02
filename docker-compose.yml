@@ -1,4 +1,20 @@
 services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cyberian
+      POSTGRES_USER: cyberian
+      POSTGRES_PASSWORD: cyberian
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U cyberian -d cyberian']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    ports:
+      - '${POSTGRES_PORT:-5432}:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
   api:
     build:
       context: .
@@ -7,8 +23,21 @@ services:
       NODE_ENV: production
       API_PORT: 3000
       WEB_ORIGIN: http://localhost:5173
+      DATABASE_URL: postgresql://cyberian:cyberian@postgres:5432/cyberian?schema=public
+    depends_on:
+      postgres:
+        condition: service_healthy
     ports:
       - '3000:3000'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'wget --spider --quiet http://localhost:3000/api/health || exit 1',
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 10
 
   web:
     build:
@@ -18,3 +47,11 @@ services:
       - api
     ports:
       - '5173:80'
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --spider --quiet http://127.0.0.1/ || exit 1']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres_data:
