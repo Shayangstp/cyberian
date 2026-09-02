@@ -15,6 +15,26 @@ services:
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.19.0
+    environment:
+      discovery.type: single-node
+      xpack.security.enabled: 'false'
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+    ports:
+      - '${ELASTICSEARCH_PORT:-9200}:9200'
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl --fail --silent http://localhost:9200/_cluster/health || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
   api:
     build:
       context: .
@@ -24,8 +44,12 @@ services:
       API_PORT: 3000
       WEB_ORIGIN: http://localhost:5173
       DATABASE_URL: postgresql://cyberian:cyberian@postgres:5432/cyberian?schema=public
+      ELASTICSEARCH_URL: http://elasticsearch:9200
+      ELASTICSEARCH_INDEX_ALIAS: profiles
     depends_on:
       postgres:
+        condition: service_healthy
+      elasticsearch:
         condition: service_healthy
     ports:
       - '3000:3000'
@@ -55,3 +79,4 @@ services:
 
 volumes:
   postgres_data:
+  elasticsearch_data:

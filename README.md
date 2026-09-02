@@ -85,6 +85,20 @@ git archive --format=zip --output ../cyberian-source.zip HEAD
 
 Do not use a broad command such as `zip -r ... *`: Git-ignored private datasets, generated import reports, and build output can still be included.
 
+## Elasticsearch Search Projection
+
+PostgreSQL remains canonical. Elasticsearch 8.19.0 is a local derived projection, accessed with the pinned official `@elastic/elasticsearch` 8.19.0 client; no raw dataset is indexed directly. Local Compose disables Elasticsearch security solely for local development and uses a persistent volume. Production must enable security and replicas.
+
+```bash
+docker compose up -d postgres elasticsearch
+pnpm db:migrate:deploy
+pnpm search:index:create
+pnpm search:reindex
+pnpm search:index:status
+```
+
+`ELASTICSEARCH_URL`, `ELASTICSEARCH_PORT`, and `ELASTICSEARCH_INDEX_ALIAS` configure the local projection. The stable `profiles` alias is switched atomically only after a versioned `profiles-v1-<timestamp>` index has been bulk-populated and count-verified. Old indexes are intentionally retained. Mapping is `dynamic: strict` and accepts only the normalized professional whitelist; sensitive/raw fields and import diagnostics are excluded.
+
 The persistence whitelist is limited to LinkedIn identity/URL, names, professional title and role, industry, current company, general location/country, professional summary, inferred years of experience, skills, and sanitized experience/education data. Phone numbers, emails, street/postal addresses, birth data, unrelated social identifiers/usernames, unknown source fields, and complete raw rows are discarded during normalization.
 
 ## Commands
