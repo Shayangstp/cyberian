@@ -1,0 +1,15 @@
+node_modules
+**/node_modules
+**/dist
+**/build
+coverage
+.git
+.env
+.env.*
+!.env.example
+data/raw
+data/processed
+*.log
+*.tmp
+*.tsbuildinfo
+*.zip
