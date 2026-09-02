@@ -23,10 +23,7 @@ export async function apiRequest<T>(
   });
 
   if (!response.ok) {
-    throw new ApiError(
-      `API request failed: ${response.status} ${response.statusText}`,
-      response.status,
-    );
+    throw new ApiError('The request could not be completed.', response.status);
   }
 
   return (await response.json()) as T;

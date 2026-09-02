@@ -1,19 +1,22 @@
 import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { describe, expect, it } from 'vitest';
 import { App } from './App';
 
 describe('App', () => {
-  it('renders the application shell and foundation message', () => {
+  it('renders the search route', () => {
     render(
       <MemoryRouter>
-        <App />
+        <QueryClientProvider client={new QueryClient()}>
+          <App />
+        </QueryClientProvider>
       </MemoryRouter>,
     );
 
-    expect(screen.getAllByText('LinkedIn Profile Search')).toHaveLength(2);
+    expect(screen.getByText('LinkedIn Profile Search')).toBeInTheDocument();
     expect(
-      screen.getByText('Search interface will be implemented in a later card.'),
+      screen.getByRole('heading', { name: 'Profile search' }),
     ).toBeInTheDocument();
   });
 });
