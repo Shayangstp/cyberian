@@ -17,4 +17,9 @@ export const environmentValidationSchema = Joi.object({
   ELASTICSEARCH_INDEX_ALIAS: Joi.string()
     .pattern(/^[a-z][a-z0-9_-]*$/)
     .default('profiles'),
+  REQUEST_SIZE_LIMIT: Joi.string()
+    .pattern(/^\d+(kb|mb)$/i)
+    .default('100kb'),
+  RATE_LIMIT_MAX: Joi.number().integer().positive().default(100),
+  RATE_LIMIT_WINDOW_MS: Joi.number().integer().positive().default(60000),
 });

@@ -1,0 +1,111 @@
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
+import { MemoryRouter } from 'react-router-dom';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { SearchFilters } from '../components/SearchFilters';
+import { useProfileSearch } from '../hooks/use-profile-search';
+import { ProfileSearchPage } from '../pages/ProfileSearchPage';
+
+vi.mock('../hooks/use-profile-search', () => ({
+  useProfileSearch: vi.fn(),
+}));
+
+const mockedUseProfileSearch = vi.mocked(useProfileSearch);
+
+afterEach(() => cleanup());
+
+describe('ProfileSearchPage', () => {
+  it('submits search text through URL state and renders results', async () => {
+    mockedUseProfileSearch.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        data: [
+          {
+            id: 'synthetic',
+            fullName: 'Synthetic Engineer',
+            jobTitle: 'Engineer',
+            currentCompanyName: 'Example Co',
+            industry: 'Technology',
+            locationName: 'Test City',
+            country: 'US',
+            summary: 'Synthetic result',
+            skills: ['TypeScript'],
+            linkedinUrl: undefined,
+          },
+        ],
+        meta: { page: 1, limit: 20, total: 1, totalPages: 1, tookMs: 1 },
+      },
+    } as unknown as ReturnType<typeof useProfileSearch>);
+
+    render(
+      <MemoryRouter initialEntries={['/?q=old']}>
+        <ProfileSearchPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.change(screen.getByLabelText('Search profiles'), {
+      target: { value: 'engineer' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Search' }));
+
+    await waitFor(() =>
+      expect(mockedUseProfileSearch).toHaveBeenLastCalledWith(
+        expect.objectContaining({ q: 'engineer' }),
+      ),
+    );
+    expect(screen.getByText('1 profiles found.')).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Synthetic Engineer' }),
+    ).toBeInTheDocument();
+  });
+
+  it('shows an empty-results message', () => {
+    mockedUseProfileSearch.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        data: [],
+        meta: { page: 1, limit: 20, total: 0, totalPages: 0, tookMs: 1 },
+      },
+    } as unknown as ReturnType<typeof useProfileSearch>);
+
+    render(
+      <MemoryRouter>
+        <ProfileSearchPage />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText('No profiles match your search.'),
+    ).toBeInTheDocument();
+  });
+});
+
+describe('SearchFilters', () => {
+  it('applies a trimmed job-title filter and clears filters', () => {
+    const onApply = vi.fn();
+    const onClear = vi.fn();
+    const { getByLabelText, getByRole } = render(
+      <SearchFilters
+        params={{ q: '', skills: [], jobTitle: '', page: 1, limit: 20 }}
+        onApply={onApply}
+        onClear={onClear}
+      />,
+    );
+
+    fireEvent.change(getByLabelText('Job title'), {
+      target: { value: ' Engineer ' },
+    });
+    fireEvent.click(getByRole('button', { name: 'Apply filters' }));
+    fireEvent.click(getByRole('button', { name: 'Clear filters' }));
+
+    expect(onApply).toHaveBeenCalledWith([], 'Engineer');
+    expect(onClear).toHaveBeenCalledTimes(1);
+  });
+});
