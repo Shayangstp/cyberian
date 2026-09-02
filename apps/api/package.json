@@ -13,10 +13,14 @@
     "db:migrate:deploy": "tsx scripts/prisma-command.ts migrate deploy",
     "db:studio": "tsx scripts/prisma-command.ts studio",
     "data:inspect": "tsx src/data/cli/inspect-dataset.ts",
-    "data:import": "tsx src/data/cli/import-dataset.ts"
+    "data:import": "tsx src/data/cli/import-dataset.ts",
+    "search:index:create": "tsx src/search/cli/create-profile-index.ts",
+    "search:reindex": "tsx src/search/cli/reindex-profiles.ts",
+    "search:index:status": "tsx src/search/cli/profile-index-status.ts"
   },
   "dependencies": {
     "@cyberian/shared": "workspace:*",
+    "@elastic/elasticsearch": "8.19.0",
     "@nestjs/common": "^11.0.11",
     "@nestjs/config": "^4.0.1",
     "@nestjs/core": "^11.0.11",
