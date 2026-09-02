@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { rootEnvironmentFilePath } from './config/environment-file';
 import { appConfig } from './config/environment';
 import { environmentValidationSchema } from './config/environment.validation';
@@ -16,9 +18,19 @@ import { ProfilesModule } from './modules/profiles/profiles.module';
       load: [appConfig],
       validationSchema: environmentValidationSchema,
     }),
+    ThrottlerModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => [
+        {
+          ttl: config.getOrThrow<number>('app.rateLimitWindowMs'),
+          limit: config.getOrThrow<number>('app.rateLimitMax'),
+        },
+      ],
+    }),
     DatabaseModule,
     HealthModule,
     ProfilesModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

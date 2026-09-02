@@ -16,6 +16,11 @@ export function loadValidatedEnvironment(): void {
     API_PORT: process.env.API_PORT,
     WEB_ORIGIN: process.env.WEB_ORIGIN,
     DATABASE_URL: process.env.DATABASE_URL,
+    ELASTICSEARCH_URL: process.env.ELASTICSEARCH_URL,
+    ELASTICSEARCH_INDEX_ALIAS: process.env.ELASTICSEARCH_INDEX_ALIAS,
+    REQUEST_SIZE_LIMIT: process.env.REQUEST_SIZE_LIMIT,
+    RATE_LIMIT_MAX: process.env.RATE_LIMIT_MAX,
+    RATE_LIMIT_WINDOW_MS: process.env.RATE_LIMIT_WINDOW_MS,
   });
   if (result.error) {
     throw new Error(

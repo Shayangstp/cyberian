@@ -1,6 +1,7 @@
 import { ServiceUnavailableException } from '@nestjs/common';
 import type { ConfigService } from '@nestjs/config';
 import { mapProfileAnalytics } from '../src/modules/profiles/analytics/profile-analytics.mapper';
+import { expectNoPublicPii } from './public-response-pii.assertion';
 import { ProfileAnalyticsService } from '../src/modules/profiles/analytics/profile-analytics.service';
 
 describe('ProfileAnalyticsService', () => {
@@ -73,6 +74,7 @@ describe('ProfileAnalyticsService', () => {
       topSkills: [{ key: 'Skill', count: 4 }],
       countries: [{ key: 'Country', count: 12 }],
     });
+    expectNoPublicPii(result);
   });
 
   it('maps missing aggregations safely and turns Elasticsearch failures into a safe 503', async () => {

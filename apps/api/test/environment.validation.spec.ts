@@ -35,4 +35,27 @@ describe('environment validation', () => {
 
     expect(result.error).toBeDefined();
   });
+
+  it('rejects invalid security limits and accepts positive configured limits', () => {
+    const base = {
+      DATABASE_URL:
+        'postgresql://application:development@localhost:5432/application',
+    };
+    expect(
+      environmentValidationSchema.validate({ ...base, RATE_LIMIT_MAX: 0 })
+        .error,
+    ).toBeDefined();
+    expect(
+      environmentValidationSchema.validate({
+        ...base,
+        RATE_LIMIT_WINDOW_MS: -1,
+      }).error,
+    ).toBeDefined();
+    expect(
+      environmentValidationSchema.validate({
+        ...base,
+        REQUEST_SIZE_LIMIT: '100kb',
+      }).error,
+    ).toBeUndefined();
+  });
 });
