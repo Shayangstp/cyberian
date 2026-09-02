@@ -23,3 +23,22 @@ export interface ProfileSearchResponse {
     tookMs: number;
   };
 }
+
+export interface AnalyticsBucket {
+  key: string;
+  count: number;
+}
+
+export interface ProfileAnalyticsTotals {
+  profiles: number;
+  industries: number;
+  skills: number;
+  countries: number;
+}
+
+export interface ProfileAnalyticsResponse {
+  totals: ProfileAnalyticsTotals;
+  topIndustries: AnalyticsBucket[];
+  topSkills: AnalyticsBucket[];
+  countries: AnalyticsBucket[];
+}
