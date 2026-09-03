@@ -22,11 +22,15 @@
     "search:index:create": "pnpm --filter @cyberian/api search:index:create",
     "search:reindex": "pnpm --filter @cyberian/api search:reindex",
     "search:index:status": "pnpm --filter @cyberian/api search:index:status",
+    "infra:up": "docker compose up -d --wait postgres elasticsearch",
+    "infra:down": "docker compose stop postgres elasticsearch",
+    "setup": "pnpm --filter @cyberian/api exec tsx ../../scripts/setup.ts",
     "lint": "eslint . --max-warnings 0",
     "test": "pnpm shared:build && pnpm --filter @cyberian/api test && pnpm --filter @cyberian/web test",
-    "typecheck": "pnpm shared:build && pnpm db:generate && pnpm --filter @cyberian/api typecheck && pnpm --filter @cyberian/web typecheck",
+    "typecheck": "tsc -p tsconfig.json --noEmit && pnpm shared:build && pnpm db:generate && pnpm --filter @cyberian/api typecheck && pnpm --filter @cyberian/web typecheck",
     "format": "prettier --write .",
-    "format:check": "prettier --check ."
+    "format:check": "prettier --check .",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",
