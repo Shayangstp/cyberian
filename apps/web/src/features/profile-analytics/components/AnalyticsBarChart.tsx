@@ -34,14 +34,7 @@ export function AnalyticsBarChart({
   buckets?: AnalyticsBucket[];
   loading?: boolean;
 }) {
-  if (loading)
-    return (
-      <Skeleton
-        variant="rounded"
-        height={320}
-        aria-label={`Loading ${title}`}
-      />
-    );
+  if (loading) return <AnalyticsBarChartSkeleton title={title} />;
   if (!buckets?.length)
     return (
       <Paper variant="outlined" sx={{ p: 3 }}>
@@ -81,6 +74,41 @@ export function AnalyticsBarChart({
         <summary>View chart data</summary>
         <AnalyticsDataTable buckets={buckets} />
       </details>
+    </Paper>
+  );
+}
+
+function AnalyticsBarChartSkeleton({ title }: { title: string }) {
+  const widths = ['82%', '68%', '91%', '58%', '76%', '48%'];
+
+  return (
+    <Paper
+      component="section"
+      variant="outlined"
+      aria-label={`Loading ${title}`}
+      aria-busy="true"
+      sx={{ p: { xs: 2, sm: 3 } }}
+    >
+      <Skeleton variant="text" width="42%" height={38} />
+      <Skeleton variant="text" width="72%" sx={{ mb: 2 }} />
+      <Box
+        sx={{ height: 300, display: 'flex', flexDirection: 'column', gap: 2 }}
+      >
+        {widths.map((width, index) => (
+          <Box
+            key={width}
+            sx={{ display: 'flex', alignItems: 'center', gap: 1.5, flex: 1 }}
+          >
+            <Skeleton variant="text" width={64} />
+            <Skeleton
+              variant="rounded"
+              width={width}
+              height={22}
+              animation={index % 2 ? 'wave' : 'pulse'}
+            />
+          </Box>
+        ))}
+      </Box>
     </Paper>
   );
 }

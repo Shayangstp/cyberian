@@ -1,7 +1,10 @@
 import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import { AnalyticsBarChart } from '../components/AnalyticsBarChart';
 import { AnalyticsOverview } from '../components/AnalyticsOverview';
-import { CountriesRanking } from '../components/CountriesRanking';
+import {
+  CountriesRanking,
+  CountriesRankingSkeleton,
+} from '../components/CountriesRanking';
 import { useProfileAnalytics } from '../hooks/use-profile-analytics';
 
 export function ProfileAnalyticsPage() {
@@ -61,7 +64,7 @@ export function ProfileAnalyticsPage() {
             </Box>
           </Box>
           {analytics.isLoading ? (
-            <Box sx={{ height: 220 }} aria-label="Loading country ranking" />
+            <CountriesRankingSkeleton />
           ) : (
             <CountriesRanking buckets={data?.countries ?? []} />
           )}
