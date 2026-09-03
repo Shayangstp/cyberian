@@ -24,11 +24,12 @@ RUN --mount=type=cache,id=pnpm-api,target=/pnpm/store \
  && pnpm --filter @cyberian/api build \
  && pnpm deploy --filter @cyberian/api --prod /runtime \
  && source_client="$(find node_modules/.pnpm -path '*/node_modules/.prisma/client' -type d -print -quit)" \
- && runtime_client="$(find /runtime/node_modules/.pnpm -path '*/node_modules/.prisma/client' -type d -print -quit)" \
+ && runtime_package="$(find /runtime/node_modules/.pnpm -path '*/node_modules/@prisma/client' -type d -print -quit)" \
  && test -n "$source_client" \
- && test -n "$runtime_client" \
- && rm -rf "$runtime_client" \
- && cp -a "$source_client" "$runtime_client"
+ && test -n "$runtime_package" \
+ && runtime_modules="$(dirname "$(dirname "$runtime_package")")" \
+ && mkdir -p "$runtime_modules/.prisma/client" \
+ && cp -a "$source_client/." "$runtime_modules/.prisma/client/"
 
 FROM base AS runtime
 RUN apt-get update \
