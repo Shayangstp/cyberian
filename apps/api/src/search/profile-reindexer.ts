@@ -24,20 +24,25 @@ export class ProfileReindexer {
           ...(after ? { skip: 1, cursor: { id: after } } : {}),
           orderBy: { id: 'asc' },
         });
+
         if (!rows.length) break;
         await this.bulk(index, rows);
         indexed += rows.length;
         after = rows.at(-1)?.id;
       }
+
       await this.client.indices.refresh({ index });
       const expected = await this.prisma.profile.count();
       const actual = await this.manager.count(index);
+
       if (actual !== expected)
         throw new Error(
           `Indexed count mismatch: expected ${expected}, got ${actual}`,
         );
+
       await this.verifyIndexQuality(index, expected);
       const previousIndex = await this.manager.switchAlias(index);
+
       return { index, previousIndex, indexed, expected, actual };
     } catch {
       throw new Error(
@@ -48,12 +53,14 @@ export class ProfileReindexer {
   private async verifyIndexQuality(index: string, expected: number) {
     if (expected > 1000)
       throw new Error('Index quality check exceeds safe result window');
+
     const result = await this.client.search<ProfileSearchDocument>({
       index,
       size: expected,
       query: { match_all: {} },
       sort: [{ id: 'asc' }],
     });
+
     if (result.hits.hits.length !== expected)
       throw new Error('Index quality count mismatch');
     for (const hit of result.hits.hits) {
@@ -61,11 +68,13 @@ export class ProfileReindexer {
       assertSearchDocumentSafe(hit._source);
     }
   }
+
   private async bulk(index: string, rows: Profile[]) {
     const operations = rows.flatMap((profile) => [
       { index: { _index: index, _id: profile.id } },
       mapProfileToSearchDocument(profile),
     ]);
+
     const result = await this.client.bulk({ operations, refresh: false });
     if (result.errors) {
       const failures = result.items.filter(

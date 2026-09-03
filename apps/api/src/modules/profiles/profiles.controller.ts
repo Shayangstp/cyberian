@@ -10,6 +10,7 @@ export class ProfilesController {
     private readonly search: ProfilesSearchService,
     private readonly analytics: ProfileAnalyticsService,
   ) {}
+
   @Get('search')
   @ApiOperation({
     summary: 'Search normalized professional profiles',

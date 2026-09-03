@@ -1,51 +1,90 @@
 # LinkedIn Profile Search
 
-A local full-stack application for importing the supplied LinkedIn profile CSV, searching approved professional fields, filtering results, and viewing aggregate analytics.
+A local full-stack application that imports a supplied LinkedIn profile dataset, searches approved professional fields, applies filters, and presents aggregate analytics.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
+  CSV[Local CSV dataset] --> Importer[Validated importer]
+  Importer --> PG[(PostgreSQL)]
+  PG -->|versioned reindex| ES[(Elasticsearch)]
   Web[React / Vite] -->|REST| API[NestJS]
-  API --> PG[(PostgreSQL / Prisma)]
-  API --> ES[(Elasticsearch)]
-  CSV[CSV importer] --> PG
-  PG -->|versioned reindex| ES
+  API --> PG
+  API --> ES
 ```
 
-PostgreSQL is the durable source of truth. Elasticsearch is a derived search index replaced safely through an alias. The frontend accesses both through the API, and `packages/shared` contains the transport contracts used by the two applications.
+PostgreSQL is the durable source of truth. Elasticsearch is a derived search index that is replaced safely through an alias. The frontend communicates through the API, and `packages/shared` contains the transport contracts shared by both applications.
 
-Stack: Node.js 22, pnpm 9, TypeScript, NestJS, Prisma/PostgreSQL 16, Elasticsearch 8.19, React/Vite, Material UI, TanStack Query, Jest, Vitest, and Docker Compose.
+The project uses Node.js 22, pnpm 9, TypeScript, NestJS, Prisma, PostgreSQL 16, Elasticsearch 8.19, React, Vite, Material UI, TanStack Query, Jest, Vitest, and Docker Compose.
 
-## Run locally
+## Prerequisites
 
-Prerequisites: Node 22, pnpm 9, Docker Compose, Make, and enough Docker memory for Elasticsearch's 512 MB heap.
+- Node.js 22
+- pnpm 9
+- Docker with Docker Compose
+- Make
+- At least 512 MB of Docker memory available for Elasticsearch
 
-Place the dataset at `data/raw/300-user-linkedin.csv`, then run:
+## Dataset setup
+
+The application expects the supplied dataset at this exact path:
+
+```text
+data/raw/300-user-linkedin.csv
+```
+
+If the supplied file has a `.txt` extension but contains comma-separated data, rename it; its contents do not need to be converted:
 
 ```bash
-cp .env.example .env
-pnpm install
+mv data/raw/300-user-linkedin.txt data/raw/300-user-linkedin.csv
+```
+
+The real dataset is intentionally not committed. `data/raw/*` is ignored by Git because profile exports may contain personal or sensitive information. Only `data/raw/.gitkeep` is tracked to preserve the directory.
+
+Automated tests do not need the real dataset or running infrastructure. They create synthetic fixtures at runtime, so contributors can run the quality checks without copying the supplied data into the repository.
+
+### Why the import pipeline is needed
+
+The supplied export is treated as untrusted input because real-world profile data can contain malformed rows, inconsistent formatting, missing identity fields, unsupported layouts, invalid public values, and duplicate profiles. The pipeline handles these problems before any profile becomes searchable:
+
+- Rows with the wrong number of columns and unsupported or ambiguous layouts are skipped.
+- Whitespace, LinkedIn URLs and identifiers, dates, countries, skills, experience, and education are normalized into the application's approved professional-field schema.
+- Records without enough stable identity information are rejected.
+- Duplicate profiles within an import are detected using a hashed stable source key and skipped.
+- Repeated imports safely create, update, or leave existing profiles unchanged instead of creating duplicate database records.
+- Import and audit reports contain aggregate counts, warning codes, and rejection reasons without exposing source rows.
+- Only accepted public fields are stored in PostgreSQL and copied into the Elasticsearch search index.
+
+Use `pnpm data:inspect` to examine the CSV structure, `pnpm data:audit` to validate normalized profile quality, or `pnpm data:import -- --dry-run` to preview an import without writing profiles.
+
+## Quick start
+
+After placing the dataset at the required path, run:
+
+```bash
 make setup
 make dev
 ```
 
-`make setup` validates the dataset, starts PostgreSQL and Elasticsearch, applies migrations, imports profiles idempotently, rebuilds the search index, and verifies counts. It exits on failure and never prints source rows.
+`make setup` installs locked dependencies, creates `.env` from `.env.example` when needed, validates the dataset, starts PostgreSQL and Elasticsearch, applies migrations, imports profiles idempotently, rebuilds the search index, and verifies record counts. It exits on failure and never prints source rows.
 
-- Web: `http://localhost:5173/search`
-- API: `http://localhost:3000/api`
-- Swagger: `http://localhost:3000/api/docs`
-- Analytics: `http://localhost:5173/analytics`
+Open the application and supporting endpoints at:
 
-For a fully containerized runtime after setup:
+- Search: <http://localhost:5173/search>
+- Analytics: <http://localhost:5173/analytics>
+- API: <http://localhost:3000/api>
+- Swagger documentation: <http://localhost:3000/api/docs>
+
+For a fully containerized API and web runtime after setup:
 
 ```bash
 make docker-up
 ```
 
-The web container serves the application through Nginx and proxies `/api` to the API container. `make docker-down` preserves the database and search volumes.
+The web container serves the application through Nginx and proxies `/api` to the API container. `make docker-down` stops the stack while preserving database and search volumes.
 
-## Search and data
+## Search API
 
 ```http
 GET /api/health
@@ -53,49 +92,73 @@ GET /api/profiles/search?q=engineer&skills=TypeScript,SQL&jobTitle=Engineer&indu
 GET /api/profiles/analytics
 ```
 
-- `q` searches names, titles, companies, skills, industries, locations, countries, and summaries. Every entered word is required; exact phrases rank highest, selected fields support prefixes, and fuzzy matching starts with terms longer than three characters.
-- `skills` is comma-separated and uses AND semantics.
-- `jobTitle` is a partial, case-insensitive title filter.
-- `industry` is a partial, case-insensitive industry filter.
-- `page` starts at 1; `limit` defaults to 10 and cannot exceed 10.
-- Invalid or unknown parameters return 400. Search outages return a generic 503.
+Search behavior:
 
-Useful data commands:
+- `q` searches names, titles, companies, skills, industries, locations, countries, and summaries. Every entered word is required. Exact phrases rank highest, selected fields support prefixes, and fuzzy matching applies to terms longer than three characters.
+- `skills` accepts a comma-separated list and uses AND semantics.
+- `jobTitle` and `industry` are partial, case-insensitive filters.
+- `page` starts at `1`.
+- `limit` defaults to `10` and cannot exceed `10`.
+- Invalid or unknown parameters return `400`; search outages return a generic `503` response.
+
+## Common commands
+
+Run `make help` to see every supported workflow.
+
+```bash
+make install       # Install dependencies from the lockfile
+make setup         # Prepare infrastructure and import the dataset
+make dev           # Start the API and web development servers
+make test          # Run API and frontend tests
+make check         # Run formatting, linting, types, tests, and builds
+make clean         # Remove dependencies and generated artifacts
+make logs          # Follow Docker Compose logs
+make docker-down   # Stop containers and preserve named volumes
+```
+
+`make clean` recursively removes `node_modules`, build outputs, coverage, tool caches, TypeScript build metadata, logs, and temporary editor files. It does not delete source files, `.env`, the raw dataset, generated data reports, or Docker volumes. Run `make install` afterward to restore dependencies.
+
+Useful data and search commands:
 
 ```bash
 pnpm data:inspect
 pnpm data:audit
 pnpm data:import -- --dry-run
 pnpm data:import
-pnpm data:rebuild       # guarded local-only destructive rebuild
+pnpm data:rebuild       # Guarded, local-only destructive rebuild
 pnpm search:reindex
 pnpm search:index:status
 ```
 
-Imports normalize a strict professional-field whitelist and upsert profiles by a hashed stable source key. Reindexing creates a versioned physical index, checks its count and public fields, and only then switches the configured alias. PostgreSQL and Elasticsearch counts must match the accepted-profile count from `pnpm data:audit`.
+Imports normalize a strict professional-field whitelist and upsert profiles by a hashed, stable source key. Reindexing creates a versioned physical index, verifies its count and public fields, and only then switches the configured alias. PostgreSQL and Elasticsearch counts must match the accepted-profile count reported by `pnpm data:audit`.
 
-The raw dataset, generated reports, and `.env` are ignored by Git. They are also excluded from Docker build contexts. Phone numbers, email, addresses, birth information, unrelated social identifiers, source keys, internal LinkedIn identifiers, raw rows, and import diagnostics are never returned publicly.
+## Testing and quality
 
-## Quality
+Run the complete project checks with:
 
 ```bash
-pnpm check
+make check
 ```
 
-This runs formatting, linting, type checking, API and frontend tests, and production builds. API tests include the configured HTTP boundary; fixtures are synthetic and do not require the real dataset or infrastructure.
+This checks formatting, runs ESLint and TypeScript, executes API and frontend tests, and creates production builds. API tests cover the configured HTTP boundary and use synthetic data rather than the real LinkedIn export.
 
-The API also applies Helmet, configured-origin CORS, strict DTO validation, query and pagination limits, a 100 KB body limit, rate limiting, validated environment configuration, and explicit response mappers.
+The API also uses Helmet, configured-origin CORS, strict DTO validation, query and pagination limits, a 100 KB request-body limit, rate limiting, validated environment configuration, and explicit public-response mappers.
 
-## Configuration and operations
+## Privacy and security
 
-Local defaults are documented in `.env.example`. Common variables are `API_PORT`, `WEB_PORT`, `WEB_ORIGIN`, `DATABASE_URL`, `ELASTICSEARCH_URL`, `ELASTICSEARCH_INDEX_ALIAS`, `POSTGRES_PORT`, `ELASTICSEARCH_PORT`, `REQUEST_SIZE_LIMIT`, `RATE_LIMIT_MAX`, and `RATE_LIMIT_WINDOW_MS`.
+The raw dataset, generated reports, and local `.env` files are ignored by Git and excluded from Docker build contexts. Do not force-add them to a commit.
 
-Run `make help` for all operational commands. Common troubleshooting steps:
+Phone numbers, email addresses, street addresses, birth information, unrelated social identifiers, source keys, internal LinkedIn identifiers, raw rows, and import diagnostics are never returned by the public API.
 
-- Port conflict: change the corresponding port in `.env`; when changing `WEB_PORT`, update `WEB_ORIGIN` too.
-- Database authentication after changing credentials: an existing PostgreSQL volume keeps the password from its first initialization. Restore that password, or recreate the disposable local volume and rerun setup.
-- Elasticsearch startup failure: allocate more Docker memory and inspect `make logs`.
-- Empty or mismatched search index: run `pnpm search:reindex`, then `pnpm search:index:status`.
-- CORS failure in host development: make `WEB_ORIGIN` match the browser origin and restart the API.
+## Configuration and troubleshooting
 
-This setup is intentionally local. A production deployment would require secret management, Elasticsearch authentication, backups and retention policies, and shared rate-limit storage for multiple API instances.
+Local defaults are documented in `.env.example`. Common settings include `API_PORT`, `WEB_ORIGIN`, `DATABASE_URL`, `ELASTICSEARCH_URL`, `ELASTICSEARCH_INDEX_ALIAS`, `POSTGRES_PORT`, `ELASTICSEARCH_PORT`, `REQUEST_SIZE_LIMIT`, `RATE_LIMIT_MAX`, and `RATE_LIMIT_WINDOW_MS`.
+
+- **Dataset missing:** confirm the filename is exactly `data/raw/300-user-linkedin.csv`; rename a CSV-formatted `.txt` file if necessary.
+- **Port conflict:** change the corresponding port in `.env`. If the web origin changes, update `WEB_ORIGIN` to match it.
+- **Database authentication failure after changing credentials:** an existing PostgreSQL volume retains the credentials from its first initialization. Restore those credentials or recreate the disposable local volume and rerun setup.
+- **Elasticsearch startup failure:** allocate more Docker memory and inspect `make logs`.
+- **Empty or mismatched search index:** run `pnpm search:reindex`, followed by `pnpm search:index:status`.
+- **CORS failure during host development:** make `WEB_ORIGIN` match the browser origin and restart the API.
+
+This setup is intended for local development. Production deployment would additionally require secret management, Elasticsearch authentication, backups and retention policies, and shared rate-limit storage when running multiple API instances.

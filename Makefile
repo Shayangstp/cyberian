@@ -4,7 +4,7 @@ SHELL := /bin/sh
 PNPM ?= pnpm
 COMPOSE ?= docker compose
 
-.PHONY: help install setup infra-up infra-down dev dev-api dev-web docker-up docker-down docker-build logs ps migrate data-import search-reindex test lint typecheck build format format-check check
+.PHONY: help install setup infra-up infra-down dev dev-api dev-web docker-up docker-down docker-build logs ps migrate data-import search-reindex test lint typecheck build format format-check check clean
 
 help:
 	@printf '%s\n' \
@@ -31,7 +31,8 @@ help:
 		'  typecheck       Type-check the workspace' \
 		'  test            Run all tests' \
 		'  build           Build all applications' \
-		'  check           Run format, lint, typecheck, tests, and build'
+		'  check           Run format, lint, typecheck, tests, and build' \
+		'  clean           Remove dependencies and generated artifacts'
 
 install:
 	$(PNPM) install --frozen-lockfile
@@ -97,3 +98,23 @@ build:
 	$(PNPM) build
 
 check: format-check lint typecheck test build
+
+clean:
+	@find . -name .git -prune -o -type d \( \
+		-name node_modules -o \
+		-name dist -o \
+		-name build -o \
+		-name coverage -o \
+		-name .vite -o \
+		-name .cache -o \
+		-name .turbo \
+	\) -prune -exec rm -rf -- {} +
+	@find . -name .git -prune -o -type f \( \
+		-name '*.tsbuildinfo' -o \
+		-name '.eslintcache' -o \
+		-name '*.log' -o \
+		-name '*.tmp' -o \
+		-name '*.swp' -o \
+		-name '.DS_Store' \
+	\) -exec rm -f -- {} +
+	@printf '%s\n' 'Project dependencies and generated artifacts removed.'

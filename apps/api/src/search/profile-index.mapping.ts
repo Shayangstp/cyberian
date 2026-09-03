@@ -1,4 +1,5 @@
 export const PROFILE_INDEX_VERSION = 3;
+
 export const profileIndexMapping = {
   settings: {
     number_of_shards: 1,
@@ -57,6 +58,7 @@ export const profileIndexMapping = {
     },
   },
 };
+
 function textKeyword() {
   return {
     type: 'text',
@@ -69,6 +71,7 @@ function textKeyword() {
     },
   };
 }
+
 function nestedProperties(keys: string[]) {
   return Object.fromEntries(keys.map((key) => [key, textKeyword()]));
 }
