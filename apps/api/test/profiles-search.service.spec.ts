@@ -26,7 +26,7 @@ describe('ProfilesSearchService', () => {
       },
     });
     const service = new ProfilesSearchService({ search } as never, config);
-    const result = await service.search({ page: 1, limit: 20 });
+    const result = await service.search({ page: 1, limit: 10 });
     expect(search).toHaveBeenCalledWith(
       expect.objectContaining({ index: 'profiles' }),
     );
@@ -41,7 +41,7 @@ describe('ProfilesSearchService', () => {
       } as never,
       config,
     );
-    await expect(service.search({ page: 1, limit: 20 })).rejects.toMatchObject({
+    await expect(service.search({ page: 1, limit: 10 })).rejects.toMatchObject({
       status: 503,
       message: 'Profile search is temporarily unavailable',
     });
@@ -69,7 +69,7 @@ describe('ProfilesSearchService', () => {
       } as never,
       config,
     );
-    const result = await service.search({ page: 1, limit: 20 });
+    const result = await service.search({ page: 1, limit: 10 });
     expect(result.data[0]).toMatchObject({
       locationName: undefined,
       skills: ['TypeScript'],

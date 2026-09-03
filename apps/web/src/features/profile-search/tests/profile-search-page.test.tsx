@@ -39,7 +39,7 @@ describe('ProfileSearchPage', () => {
             linkedinUrl: undefined,
           },
         ],
-        meta: { page: 1, limit: 20, total: 1, totalPages: 1, tookMs: 1 },
+        meta: { page: 1, limit: 10, total: 1, totalPages: 1, tookMs: 1 },
       },
     } as unknown as ReturnType<typeof useProfileSearch>);
 
@@ -71,7 +71,7 @@ describe('ProfileSearchPage', () => {
       isError: false,
       data: {
         data: [],
-        meta: { page: 1, limit: 20, total: 0, totalPages: 0, tookMs: 1 },
+        meta: { page: 1, limit: 10, total: 0, totalPages: 0, tookMs: 1 },
       },
     } as unknown as ReturnType<typeof useProfileSearch>);
 
@@ -92,7 +92,7 @@ describe('ProfileSearchPage', () => {
       isError: false,
       data: {
         data: [],
-        meta: { page: 1, limit: 20, total: 0, totalPages: 0, tookMs: 1 },
+        meta: { page: 1, limit: 10, total: 0, totalPages: 0, tookMs: 1 },
       },
     } as unknown as ReturnType<typeof useProfileSearch>);
 
@@ -122,7 +122,7 @@ describe('SearchFilters', () => {
     const onClear = vi.fn();
     const { getByLabelText, getByRole } = render(
       <SearchFilters
-        params={{ q: '', skills: [], jobTitle: '', page: 1, limit: 20 }}
+        params={{ q: '', skills: [], jobTitle: '', page: 1, limit: 10 }}
         onApply={onApply}
         onClear={onClear}
       />,
@@ -142,7 +142,7 @@ describe('SearchFilters', () => {
     const onApply = vi.fn();
     render(
       <SearchFilters
-        params={{ q: '', skills: [], jobTitle: '', page: 1, limit: 20 }}
+        params={{ q: '', skills: [], jobTitle: '', page: 1, limit: 10 }}
         onApply={onApply}
         onClear={vi.fn()}
       />,

@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { buildSearchQuery } from '../src/modules/profiles/search-query.builder';
 describe('buildSearchQuery', () => {
-  const base = { page: 1, limit: 20 };
+  const base = { page: 1, limit: 10 };
   it('builds keyword relevance search against alias', () => {
     const result = buildSearchQuery('profiles', { ...base, q: 'engineer' });
     expect(result.index).toBe('profiles');

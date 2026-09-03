@@ -10,11 +10,20 @@ export class ApiError extends Error {
   }
 }
 
+export function resolveApiUrl(
+  path: string,
+  apiBaseUrl = environment.apiBaseUrl,
+  browserOrigin = globalThis.location?.origin,
+): URL {
+  const baseUrl = new URL(apiBaseUrl, browserOrigin);
+  return new URL(path, baseUrl);
+}
+
 export async function apiRequest<T>(
   path: string,
   init?: RequestInit,
 ): Promise<T> {
-  const response = await fetch(new URL(path, environment.apiBaseUrl), {
+  const response = await fetch(resolveApiUrl(path), {
     ...init,
     headers: {
       Accept: 'application/json',

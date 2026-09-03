@@ -1,7 +1,10 @@
 FROM node:22-bookworm-slim AS base
 ENV PNPM_HOME=/pnpm
 ENV PATH=$PNPM_HOME:$PATH
-RUN corepack enable
+RUN apt-get update \
+ && apt-get install --no-install-recommends -y openssl \
+ && rm -rf /var/lib/apt/lists/* \
+ && corepack enable
 WORKDIR /app
 
 FROM base AS dependencies
@@ -13,12 +16,21 @@ RUN --mount=type=cache,id=pnpm-api,target=/pnpm/store pnpm install --frozen-lock
 FROM dependencies AS build
 COPY apps/api apps/api
 COPY packages/shared packages/shared
-RUN pnpm --filter @cyberian/shared build \
+# `pnpm deploy` performs a production install, so restore the generated Prisma
+# client from the build workspace after deployment replaces it with a stub.
+RUN --mount=type=cache,id=pnpm-api,target=/pnpm/store \
+    pnpm --filter @cyberian/shared build \
  && pnpm --filter @cyberian/api db:generate \
  && pnpm --filter @cyberian/api build \
- && pnpm deploy --filter @cyberian/api --prod /runtime
+ && pnpm deploy --filter @cyberian/api --prod /runtime \
+ && source_client="$(find node_modules/.pnpm -path '*/node_modules/.prisma/client' -type d -print -quit)" \
+ && runtime_client="$(find /runtime/node_modules/.pnpm -path '*/node_modules/.prisma/client' -type d -print -quit)" \
+ && test -n "$source_client" \
+ && test -n "$runtime_client" \
+ && rm -rf "$runtime_client" \
+ && cp -a "$source_client" "$runtime_client"
 
-FROM node:22-bookworm-slim AS runtime
+FROM base AS runtime
 RUN apt-get update \
  && apt-get install --no-install-recommends -y dumb-init \
  && rm -rf /var/lib/apt/lists/* \
