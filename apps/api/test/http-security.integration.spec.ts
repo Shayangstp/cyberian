@@ -181,7 +181,7 @@ describe('HTTP security integration', () => {
   });
 
   it('rejects invalid and unknown search query parameters without internal details', async () => {
-    for (const query of ['limit=51', 'unexpected=value']) {
+    for (const query of ['limit=11', 'unexpected=value']) {
       const response = await http(app)
         .get(`/api/profiles/search?${query}`)
         .expect(400);

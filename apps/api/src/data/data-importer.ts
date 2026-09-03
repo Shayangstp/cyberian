@@ -7,6 +7,7 @@ import type {
   ProfileBatchWriter,
 } from './dataset.types';
 import { ProfileNormalizer } from './profile-normalizer';
+import { adaptLinkedinProfileSource } from './linkedin-profile-source-layout';
 
 export interface ImportDatasetOptions {
   dryRun?: boolean;
@@ -61,7 +62,16 @@ export async function importDataset(
   };
 
   const inspection = await inspectDataset(filePath, async (record) => {
-    const result = normalizer.normalize(record);
+    const adapted = adaptLinkedinProfileSource(record);
+    if (!adapted.record) {
+      summary.skipped += 1;
+      incrementReason(
+        rejectionReasonCounts,
+        adapted.rejectionCode ?? 'unsupported_source_layout',
+      );
+      return;
+    }
+    const result = normalizer.normalize(adapted.record);
     summary.normalizationWarnings += result.warningCodes.length;
 
     if (!result.profile) {

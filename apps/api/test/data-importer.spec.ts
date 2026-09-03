@@ -6,6 +6,7 @@ import type {
   NormalizedProfile,
   ProfileBatchWriter,
 } from '../src/data/dataset.types';
+import { LINKEDIN_PROFILE_SOURCE_HEADERS } from '../src/data/linkedin-profile-source-layout';
 
 describe('importDataset', () => {
   it('performs no writes during dry-run and reports only aggregates', async () => {
@@ -88,10 +89,23 @@ async function withFixture(
   await writeFile(
     fixturePath,
     [
-      'linkedin_id,full_name,job_title,skills',
-      'synthetic-1,Synthetic Person,Engineer,"TypeScript, SQL"',
-      'synthetic-2,Another Synthetic Person,Designer,Design',
-      'synthetic-1,Synthetic Person,Engineer,TypeScript',
+      LINKEDIN_PROFILE_SOURCE_HEADERS.join(','),
+      csvRow(
+        sourceRow('synthetic-1', 'Synthetic Person', 'Engineer', [
+          'TypeScript',
+          'SQL',
+        ]),
+      ),
+      csvRow(
+        sourceRow('synthetic-2', 'Another Synthetic Person', 'Designer', [
+          'Design',
+        ]),
+      ),
+      csvRow(
+        sourceRow('synthetic-1', 'Synthetic Person', 'Engineer', [
+          'TypeScript',
+        ]),
+      ),
       'malformed,record',
     ].join('\n'),
     'utf8',
@@ -102,6 +116,29 @@ async function withFixture(
   } finally {
     await rm(directory, { recursive: true });
   }
+}
+
+function sourceRow(
+  id: string,
+  name: string,
+  title: string,
+  skills: string[],
+): string[] {
+  const row = Object.fromEntries(
+    LINKEDIN_PROFILE_SOURCE_HEADERS.map((key) => [key, '']),
+  );
+  for (const key of LINKEDIN_PROFILE_SOURCE_HEADERS.slice(45, 58))
+    row[key] = '[]';
+  row.version_status = '{}';
+  row.linkedin_id = id;
+  row.full_name = name;
+  row.job_title = title;
+  row.skills = JSON.stringify(skills);
+  return LINKEDIN_PROFILE_SOURCE_HEADERS.map((key) => row[key] ?? '');
+}
+
+function csvRow(values: string[]): string {
+  return values.map((value) => `"${value.replaceAll('"', '""')}"`).join(',');
 }
 
 function serializeProfile(profile: NormalizedProfile): string {

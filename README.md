@@ -111,17 +111,17 @@ pnpm search:reindex
 pnpm search:index:status
 ```
 
-Reindexing creates and populates a versioned physical index from PostgreSQL, verifies its count, then switches the configured alias. It is not a direct CSV index. `search:index:status` reports PostgreSQL and Elasticsearch counts; after importing the supplied dataset, both should be `248`.
+Reindexing creates and populates a versioned physical index from PostgreSQL, verifies its count, then switches the configured alias. It is not a direct CSV index. `search:index:status` reports PostgreSQL and Elasticsearch counts; both must match the accepted-profile count reported by `pnpm data:audit`.
 
 ## Search API
 
 ```http
 GET /api/health
-GET /api/profiles/search?q=engineer&skills=TypeScript,SQL&jobTitle=Engineer&page=1&limit=20
+GET /api/profiles/search?q=engineer&skills=TypeScript,SQL&jobTitle=Engineer&page=1&limit=10
 GET /api/profiles/analytics
 ```
 
-`q` and `jobTitle` are strings; `skills` is comma-separated and uses AND semantics; `page` starts at 1; `limit` is 1–50 (default 20). Invalid or unknown query parameters return a safe 400. Elasticsearch outages return a generic 503, not connection details. Swagger is available at `/api/docs`.
+`q` and `jobTitle` are strings; `skills` is comma-separated and uses AND semantics; `page` starts at 1; `limit` is 1–10 (default 10). Keyword search requires every entered word, ranks exact phrases highest, supports prefixes for names, titles, and companies, and only allows fuzzy typo matching for terms longer than three characters. Invalid or unknown query parameters return a safe 400. Elasticsearch outages return a generic 503, not connection details. Swagger is available at `/api/docs`.
 
 ## Analytics API
 

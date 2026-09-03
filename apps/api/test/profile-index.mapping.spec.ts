@@ -5,11 +5,17 @@ describe('profile index mapping', () => {
     expect(profileIndexMapping.mappings.dynamic).toBe('strict');
     expect(p.skills).toMatchObject({
       type: 'text',
-      fields: { keyword: { type: 'keyword' } },
+      fields: { keyword: { type: 'keyword', normalizer: 'lowercase_keyword' } },
+    });
+    expect(p.country).toMatchObject({
+      type: 'text',
+      fields: { keyword: { type: 'keyword', normalizer: 'lowercase_keyword' } },
     });
     expect(p.inferredYearsExperience).toEqual({ type: 'float' });
-    expect(p.sourceUpdatedAt).toEqual({ type: 'date' });
+    expect(p).not.toHaveProperty('sourceUpdatedAt');
     expect(p).not.toHaveProperty('email');
     expect(p).not.toHaveProperty('phone');
+    expect(p).not.toHaveProperty('sourceKey');
+    expect(p).not.toHaveProperty('linkedinId');
   });
 });

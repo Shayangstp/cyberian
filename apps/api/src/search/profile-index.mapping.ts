@@ -1,12 +1,21 @@
-export const PROFILE_INDEX_VERSION = 1;
+export const PROFILE_INDEX_VERSION = 3;
 export const profileIndexMapping = {
-  settings: { number_of_shards: 1, number_of_replicas: 0 },
+  settings: {
+    number_of_shards: 1,
+    number_of_replicas: 0,
+    analysis: {
+      normalizer: {
+        lowercase_keyword: {
+          type: 'custom',
+          filter: ['lowercase', 'asciifolding'],
+        },
+      },
+    },
+  },
   mappings: {
     dynamic: 'strict' as const,
     properties: {
       id: { type: 'keyword' },
-      sourceKey: { type: 'keyword' },
-      linkedinId: { type: 'keyword' },
       linkedinUrl: { type: 'keyword', index: false },
       fullName: textKeyword(),
       firstName: textKeyword(),
@@ -16,13 +25,10 @@ export const profileIndexMapping = {
       summary: { type: 'text' },
       industry: textKeyword(),
       jobTitleRole: textKeyword(),
-      country: { type: 'keyword' },
+      country: textKeyword(),
       skills: textKeyword(),
       locationName: textKeyword(),
       inferredYearsExperience: { type: 'float' },
-      sourceUpdatedAt: { type: 'date' },
-      importedAt: { type: 'date' },
-      updatedAt: { type: 'date' },
       experience: {
         type: 'nested',
         properties: nestedProperties([
@@ -54,7 +60,13 @@ export const profileIndexMapping = {
 function textKeyword() {
   return {
     type: 'text',
-    fields: { keyword: { type: 'keyword', ignore_above: 256 } },
+    fields: {
+      keyword: {
+        type: 'keyword',
+        ignore_above: 256,
+        normalizer: 'lowercase_keyword',
+      },
+    },
   };
 }
 function nestedProperties(keys: string[]) {

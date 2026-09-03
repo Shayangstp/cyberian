@@ -1,7 +1,5 @@
 export interface ProfileSearchDocument {
   id: string;
-  sourceKey: string;
-  linkedinId?: string;
   linkedinUrl?: string;
   fullName?: string;
   firstName?: string;
@@ -15,9 +13,6 @@ export interface ProfileSearchDocument {
   skills: string[];
   locationName?: string;
   inferredYearsExperience?: number;
-  sourceUpdatedAt?: string;
-  importedAt: string;
-  updatedAt: string;
   experience?: Record<string, string>[];
   education?: Record<string, string>[];
 }

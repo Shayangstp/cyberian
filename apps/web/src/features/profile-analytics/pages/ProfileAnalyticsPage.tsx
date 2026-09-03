@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Grid, Stack, Typography } from '@mui/material';
+import { Alert, Box, Button, Stack, Typography } from '@mui/material';
 import { AnalyticsBarChart } from '../components/AnalyticsBarChart';
 import { AnalyticsOverview } from '../components/AnalyticsOverview';
 import { CountriesRanking } from '../components/CountriesRanking';
@@ -36,22 +36,31 @@ export function ProfileAnalyticsPage() {
           </Alert>
         ) : (
           <>
-            <Grid container spacing={3}>
-              <Grid item xs={12} md={6}>
+            <Box
+              sx={{
+                display: 'grid',
+                gridTemplateColumns: {
+                  xs: 'minmax(0, 1fr)',
+                  md: 'repeat(2, minmax(0, 1fr))',
+                },
+                gap: 3,
+              }}
+            >
+              <Box>
                 <AnalyticsBarChart
                   title="Top Industries"
                   buckets={data?.topIndustries}
                   loading={analytics.isLoading}
                 />
-              </Grid>
-              <Grid item xs={12} md={6}>
+              </Box>
+              <Box>
                 <AnalyticsBarChart
                   title="Top Skills"
                   buckets={data?.topSkills}
                   loading={analytics.isLoading}
                 />
-              </Grid>
-            </Grid>
+              </Box>
+            </Box>
             {analytics.isLoading ? (
               <Box sx={{ height: 220 }} aria-label="Loading country ranking" />
             ) : (

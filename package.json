@@ -19,6 +19,8 @@
     "db:studio": "pnpm --filter @cyberian/api db:studio",
     "data:inspect": "pnpm --filter @cyberian/api data:inspect",
     "data:import": "pnpm --filter @cyberian/api data:import",
+    "data:audit": "pnpm --filter @cyberian/api data:audit",
+    "data:rebuild": "pnpm --filter @cyberian/api data:rebuild",
     "search:index:create": "pnpm --filter @cyberian/api search:index:create",
     "search:reindex": "pnpm --filter @cyberian/api search:reindex",
     "search:index:status": "pnpm --filter @cyberian/api search:index:status",

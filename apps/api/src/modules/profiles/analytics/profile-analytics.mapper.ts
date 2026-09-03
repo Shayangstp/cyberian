@@ -2,6 +2,10 @@ import type {
   AnalyticsBucket,
   ProfileAnalyticsResponse,
 } from '@cyberian/shared';
+import {
+  isCountryName,
+  publicValueIssue,
+} from '../../../data/public-profile-value-guards';
 
 type AggregationValue = { value?: unknown } | undefined;
 type BucketAggregation = { buckets?: unknown } | undefined;
@@ -18,9 +22,9 @@ export function mapProfileAnalytics(response: {
       skills: cardinality(aggregations.uniqueSkills),
       countries: cardinality(aggregations.uniqueCountries),
     },
-    topIndustries: buckets(aggregations.topIndustries),
-    topSkills: buckets(aggregations.topSkills),
-    countries: buckets(aggregations.countries),
+    topIndustries: buckets(aggregations.topIndustries, 'industry'),
+    topSkills: buckets(aggregations.topSkills, 'skill'),
+    countries: buckets(aggregations.countries, 'country'),
   };
 }
 
@@ -33,7 +37,10 @@ function cardinality(value: unknown): number {
   return safeCount((value as AggregationValue)?.value);
 }
 
-function buckets(value: unknown): AnalyticsBucket[] {
+function buckets(
+  value: unknown,
+  kind: 'industry' | 'skill' | 'country',
+): AnalyticsBucket[] {
   const candidate = (value as BucketAggregation)?.buckets;
   if (!Array.isArray(candidate)) return [];
   return candidate
@@ -41,6 +48,10 @@ function buckets(value: unknown): AnalyticsBucket[] {
       if (!bucket || typeof bucket !== 'object') return [];
       const source = bucket as { key?: unknown; doc_count?: unknown };
       if (typeof source.key !== 'string') return [];
+      if (kind === 'country') {
+        if (!isCountryName(source.key) && !/^[A-Z]{2}$/.test(source.key))
+          return [];
+      } else if (publicValueIssue(source.key, kind)) return [];
       return [{ key: source.key, count: safeCount(source.doc_count) }];
     })
     .sort(

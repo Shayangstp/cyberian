@@ -10,5 +10,5 @@ export const defaultProfileSearchParams: ProfileSearchParams = {
   skills: [],
   jobTitle: '',
   page: 1,
-  limit: 20,
+  limit: 10,
 };

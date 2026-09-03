@@ -4,16 +4,9 @@ export function parseProfileSearchParams(
 ): ProfileSearchParams {
   const q = (input.get('q') ?? '').trim();
   const jobTitle = (input.get('jobTitle') ?? '').trim();
-  const skills = [
-    ...new Set(
-      (input.get('skills') ?? '')
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean),
-    ),
-  ].sort((a, b) => a.localeCompare(b));
+  const skills = normalizeSkills((input.get('skills') ?? '').split(','));
   const page = positive(input.get('page'), 1);
-  const limit = Math.min(50, positive(input.get('limit'), 20));
+  const limit = Math.min(10, positive(input.get('limit'), 10));
   return { q, skills, jobTitle, page, limit };
 }
 export function serializeProfileSearchParams(
@@ -22,14 +15,21 @@ export function serializeProfileSearchParams(
   const p = new URLSearchParams();
   if (params.q) p.set('q', params.q);
   if (params.skills.length)
-    p.set(
-      'skills',
-      [...new Set(params.skills)].sort((a, b) => a.localeCompare(b)).join(','),
-    );
+    p.set('skills', normalizeSkills(params.skills).join(','));
   if (params.jobTitle) p.set('jobTitle', params.jobTitle);
   if (params.page !== 1) p.set('page', String(params.page));
-  if (params.limit !== 20) p.set('limit', String(params.limit));
+  if (params.limit !== 10) p.set('limit', String(params.limit));
   return p.toString();
+}
+function normalizeSkills(values: string[]): string[] {
+  const unique = new Map<string, string>();
+  for (const value of values) {
+    const skill = value.trim();
+    if (skill && !unique.has(skill.toLocaleLowerCase())) {
+      unique.set(skill.toLocaleLowerCase(), skill);
+    }
+  }
+  return [...unique.values()].slice(0, 10).sort((a, b) => a.localeCompare(b));
 }
 export function withSearchChange(
   params: ProfileSearchParams,

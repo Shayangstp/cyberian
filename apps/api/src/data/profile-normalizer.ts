@@ -6,6 +6,11 @@ import type {
   SafeJsonObject,
 } from './dataset.types';
 import { parseStructuredValue } from './structured-value-parser';
+import {
+  isCountryName,
+  publicValueIssue,
+  type PublicFieldKind,
+} from './public-profile-value-guards';
 
 const FIELD_ALIASES = {
   linkedinId: ['linkedin_id', 'linkedinid', 'linkedin_num_id'],
@@ -82,12 +87,28 @@ export class ProfileNormalizer {
       warningCodes.push('invalid_linkedin_url');
     }
 
-    let fullName = clean(pick(fields, FIELD_ALIASES.fullName), 255);
-    let firstName = clean(pick(fields, FIELD_ALIASES.firstName), 120);
-    let lastName = clean(pick(fields, FIELD_ALIASES.lastName), 120);
+    let fullName = cleanPublic(
+      pick(fields, FIELD_ALIASES.fullName),
+      'name',
+      255,
+    );
+    let firstName = cleanPublic(
+      pick(fields, FIELD_ALIASES.firstName),
+      'name',
+      120,
+    );
+    let lastName = cleanPublic(
+      pick(fields, FIELD_ALIASES.lastName),
+      'name',
+      120,
+    );
 
     if (!fullName && (firstName || lastName)) {
-      fullName = clean([firstName, lastName].filter(Boolean).join(' '), 255);
+      fullName = cleanPublic(
+        [firstName, lastName].filter(Boolean).join(' '),
+        'name',
+        255,
+      );
     }
     if (fullName && !firstName && !lastName) {
       const parts = fullName.split(' ');
@@ -95,19 +116,35 @@ export class ProfileNormalizer {
       lastName = parts.length > 0 ? parts.join(' ') : null;
     }
 
-    const industry = clean(pick(fields, FIELD_ALIASES.industry), 255);
-    const jobTitle = clean(pick(fields, FIELD_ALIASES.jobTitle), 255);
-    const jobTitleRole = clean(pick(fields, FIELD_ALIASES.jobTitleRole), 255);
+    const industry = cleanPublic(
+      pick(fields, FIELD_ALIASES.industry),
+      'industry',
+      255,
+    );
+    let jobTitle = cleanPublic(
+      pick(fields, FIELD_ALIASES.jobTitle),
+      'job_title',
+      255,
+    );
+    const jobTitleRole = cleanPublic(
+      pick(fields, FIELD_ALIASES.jobTitleRole),
+      'job_title',
+      255,
+    );
     const currentCompanyName = normalizeCompanyName(
       pick(fields, FIELD_ALIASES.currentCompanyName),
     );
-    const locationName = clean(pick(fields, FIELD_ALIASES.locationName), 255);
+    const locationName = cleanPublic(
+      pick(fields, FIELD_ALIASES.locationName),
+      'location',
+      255,
+    );
     const country = normalizeCountry(pick(fields, FIELD_ALIASES.country));
-    const summary = clean(pick(fields, FIELD_ALIASES.summary));
+    const summary = cleanPublic(pick(fields, FIELD_ALIASES.summary), 'summary');
     const inferredYearsExperience = normalizeYears(
       pick(fields, FIELD_ALIASES.inferredYearsExperience),
     );
-    const skills = normalizeSkills(pick(fields, FIELD_ALIASES.skills));
+    const skillsResult = normalizeSkills(pick(fields, FIELD_ALIASES.skills));
     const experienceResult = normalizeStructured(
       pick(fields, FIELD_ALIASES.experience),
       EXPERIENCE_FIELDS,
@@ -120,11 +157,49 @@ export class ProfileNormalizer {
       pick(fields, FIELD_ALIASES.sourceUpdatedAt),
     );
 
+    addInvalidWarning(
+      warningCodes,
+      fields,
+      FIELD_ALIASES.jobTitle,
+      'job_title',
+      'invalid_job_title',
+    );
+    addInvalidWarning(
+      warningCodes,
+      fields,
+      FIELD_ALIASES.currentCompanyName,
+      'company',
+      'invalid_company_name',
+    );
+    addInvalidWarning(
+      warningCodes,
+      fields,
+      FIELD_ALIASES.locationName,
+      'location',
+      'invalid_location',
+    );
+    const rawCountry = pick(fields, FIELD_ALIASES.country);
+    if (rawCountry?.trim() && !country) warningCodes.push('invalid_country');
+    addInvalidWarning(
+      warningCodes,
+      fields,
+      FIELD_ALIASES.summary,
+      'summary',
+      'invalid_summary',
+    );
+    if (skillsResult.invalid) warningCodes.push('invalid_skills');
+
     if (experienceResult.warning) {
       warningCodes.push('invalid_experience');
     }
     if (educationResult.warning) {
       warningCodes.push('invalid_education');
+    }
+
+    if (!jobTitle) {
+      jobTitle = currentTitleFromExperience(
+        pick(fields, FIELD_ALIASES.experience),
+      );
     }
 
     const sourceKey = createSourceKey({
@@ -160,7 +235,7 @@ export class ProfileNormalizer {
       country,
       summary,
       inferredYearsExperience,
-      skills,
+      skills: skillsResult.value,
       experience: experienceResult.value,
       education: educationResult.value,
       sourceUpdatedAt,
@@ -255,27 +330,18 @@ function linkedinIdFromUrl(url: string): string | null {
 }
 
 function normalizeCompanyName(value: string | undefined): string | null {
-  const cleaned = clean(value, 255);
+  const cleaned = cleanPublic(value, 'company', 255);
   if (!cleaned) {
     return null;
   }
-  if (!cleaned.startsWith('{')) {
-    return cleaned;
-  }
-  try {
-    const parsed: unknown = JSON.parse(cleaned);
-    if (isPlainObject(parsed)) {
-      const candidate = parsed.name ?? parsed.company_name;
-      return typeof candidate === 'string' ? clean(candidate, 255) : null;
-    }
-  } catch {
-    return null;
-  }
-  return null;
+  return cleaned;
 }
 
 function normalizeCountry(value: string | undefined): string | null {
-  const country = clean(value, 120);
+  const country = cleanPublic(value, 'country', 120);
+  if (!country || (!isCountryName(country) && !/^[A-Za-z]{2}$/.test(country))) {
+    return null;
+  }
   return country?.length === 2 ? country.toUpperCase() : country;
 }
 
@@ -288,10 +354,13 @@ function normalizeYears(value: string | undefined): number | null {
   return Number.isFinite(years) && years >= 0 && years <= 100 ? years : null;
 }
 
-function normalizeSkills(value: string | undefined): string[] {
+function normalizeSkills(value: string | undefined): {
+  value: string[];
+  invalid: boolean;
+} {
   const cleaned = clean(value);
   if (!cleaned) {
-    return [];
+    return { value: [], invalid: false };
   }
 
   let candidates: unknown[] | null = null;
@@ -303,6 +372,7 @@ function normalizeSkills(value: string | undefined): string[] {
   const rawSkills =
     candidates ?? cleaned.replace(/^\[|\]$/g, '').split(/[,;|]/);
   const unique = new Map<string, string>();
+  let invalid = false;
   for (const candidate of rawSkills) {
     const raw =
       typeof candidate === 'string'
@@ -310,12 +380,13 @@ function normalizeSkills(value: string | undefined): string[] {
         : isPlainObject(candidate) && typeof candidate.name === 'string'
           ? candidate.name
           : '';
-    const skill = clean(raw.replace(/^['"]|['"]$/g, ''), 120);
-    if (skill && !unique.has(skill.toLowerCase())) {
+    const skill = cleanPublic(raw.replace(/^['"]|['"]$/g, ''), 'skill', 120);
+    if (!skill && raw.trim()) invalid = true;
+    if (skill && !unique.has(skill.toLowerCase()) && unique.size < 100) {
       unique.set(skill.toLowerCase(), skill);
     }
   }
-  return [...unique.values()];
+  return { value: [...unique.values()], invalid };
 }
 
 function normalizeStructured(
@@ -360,11 +431,30 @@ function sanitizeStructuredItem(
       continue;
     }
     const normalizedValue = clean(String(fieldValue));
-    if (normalizedValue) {
+    const guardKind = structuredFieldKind(normalizedKey);
+    if (
+      normalizedValue &&
+      (!guardKind || !publicValueIssue(normalizedValue, guardKind))
+    ) {
       sanitized[normalizedKey] = normalizedValue;
     }
   }
   return Object.keys(sanitized).length > 0 ? sanitized : null;
+}
+
+function structuredFieldKind(key: string): PublicFieldKind | null {
+  if (key === 'title') return 'job_title';
+  if (key === 'company' || key === 'companyname') return 'company';
+  if (key === 'location') return 'location';
+  if (key === 'description') return 'summary';
+  if (
+    key === 'school' ||
+    key === 'schoolname' ||
+    key === 'degree' ||
+    key === 'fieldofstudy'
+  )
+    return 'industry';
+  return null;
 }
 
 function normalizeDate(value: string | undefined): Date | null {
@@ -379,6 +469,70 @@ function normalizeDate(value: string | undefined): Date | null {
     date.getUTCFullYear() > maximumYear
     ? null
     : date;
+}
+
+function cleanPublic(
+  value: string | null | undefined,
+  field: PublicFieldKind,
+  maxLength?: number,
+): string | null {
+  const cleaned = clean(value, maxLength);
+  if (!cleaned || publicValueIssue(cleaned, field)) return null;
+  return cleaned;
+}
+function addInvalidWarning(
+  warnings: string[],
+  fields: ReadonlyMap<string, string>,
+  aliases: readonly string[],
+  field: PublicFieldKind,
+  code: string,
+): void {
+  const raw = pick(fields, aliases);
+  if (
+    raw !== undefined &&
+    raw.trim() !== '' &&
+    cleanPublic(raw, field) === null
+  )
+    warnings.push(code);
+}
+
+function currentTitleFromExperience(value: string | undefined): string | null {
+  if (!value) return null;
+  const parsed = parseStructuredValue(value);
+  if (!parsed.success || !Array.isArray(parsed.value)) return null;
+  const candidates = parsed.value.flatMap(
+    (entry): Array<{ title: string; explicit: boolean }> => {
+      if (!isPlainObject(entry)) return [];
+      const title =
+        typeof entry.title === 'string'
+          ? cleanPublic(entry.title, 'job_title', 255)
+          : null;
+      if (!title) return [];
+      const explicitlyCurrent =
+        entry.is_primary === true ||
+        entry.is_current === true ||
+        entry.current === true ||
+        entry.primary === true;
+      const noEndDate =
+        entry.end_date === null ||
+        entry.end_date === undefined ||
+        entry.end_date === '';
+      return explicitlyCurrent || noEndDate
+        ? [{ title, explicit: explicitlyCurrent }]
+        : [];
+    },
+  );
+  const explicit = candidates.filter((candidate) => candidate.explicit);
+  return uniqueTitle(explicit.length > 0 ? explicit : candidates);
+}
+
+function uniqueTitle(
+  candidates: ReadonlyArray<{ title: string }>,
+): string | null {
+  const unique = new Map<string, string>();
+  for (const candidate of candidates)
+    unique.set(candidate.title.toLocaleLowerCase(), candidate.title);
+  return unique.size === 1 ? ([...unique.values()][0] ?? null) : null;
 }
 
 function createSourceKey(fields: {

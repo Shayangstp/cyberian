@@ -46,4 +46,34 @@ describe('ProfilesSearchService', () => {
       message: 'Profile search is temporarily unavailable',
     });
   });
+
+  it('removes PII-like values even if a stale index document contains them', async () => {
+    const service = new ProfilesSearchService(
+      {
+        search: jest.fn().mockResolvedValue({
+          took: 1,
+          hits: {
+            total: 1,
+            hits: [
+              {
+                _source: {
+                  id: 'synthetic',
+                  fullName: 'Synthetic Person',
+                  locationName: '123 Example Street',
+                  skills: ['TypeScript', 'person@example.invalid'],
+                },
+              },
+            ],
+          },
+        }),
+      } as never,
+      config,
+    );
+    const result = await service.search({ page: 1, limit: 20 });
+    expect(result.data[0]).toMatchObject({
+      locationName: undefined,
+      skills: ['TypeScript'],
+    });
+    expectNoPublicPii(result);
+  });
 });

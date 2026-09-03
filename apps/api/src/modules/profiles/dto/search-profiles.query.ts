@@ -37,9 +37,9 @@ export class SearchProfilesQuery {
   @Min(1)
   page = 1;
   @IsOptional()
-  @Transform(({ value }) => Number(value ?? 20))
+  @Transform(({ value }) => Number(value ?? 10))
   @IsInt()
   @Min(1)
-  @Max(50)
-  limit = 20;
+  @Max(10)
+  limit = 10;
 }

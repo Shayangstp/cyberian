@@ -23,7 +23,7 @@ describe('ProfileAnalyticsService', () => {
           ],
         },
         topSkills: { buckets: [{ key: 'Skill', doc_count: 4 }] },
-        countries: { buckets: [{ key: 'Country', doc_count: 12 }] },
+        countries: { buckets: [{ key: 'Canada', doc_count: 12 }] },
       },
     });
     const service = new ProfileAnalyticsService({ search } as never, config);
@@ -44,7 +44,10 @@ describe('ProfileAnalyticsService', () => {
           cardinality: { field: 'skills.keyword', precision_threshold: 1000 },
         },
         uniqueCountries: {
-          cardinality: { field: 'country', precision_threshold: 1000 },
+          cardinality: {
+            field: 'country.keyword',
+            precision_threshold: 1000,
+          },
         },
         topIndustries: {
           terms: {
@@ -61,7 +64,11 @@ describe('ProfileAnalyticsService', () => {
           },
         },
         countries: {
-          terms: { field: 'country', size: 10, order: { _count: 'desc' } },
+          terms: {
+            field: 'country.keyword',
+            size: 10,
+            order: { _count: 'desc' },
+          },
         },
       },
     });
@@ -72,7 +79,7 @@ describe('ProfileAnalyticsService', () => {
         { key: 'B', count: 2 },
       ],
       topSkills: [{ key: 'Skill', count: 4 }],
-      countries: [{ key: 'Country', count: 12 }],
+      countries: [{ key: 'Canada', count: 12 }],
     });
     expectNoPublicPii(result);
   });
@@ -106,5 +113,25 @@ describe('ProfileAnalyticsService', () => {
       topSkills: [],
       countries: [],
     });
+  });
+
+  it('drops malformed and PII-like analytics buckets', () => {
+    const result = mapProfileAnalytics({
+      aggregations: {
+        topIndustries: { buckets: [{ key: "['industry']", doc_count: 2 }] },
+        topSkills: {
+          buckets: [{ key: 'person@example.invalid', doc_count: 2 }],
+        },
+        countries: {
+          buckets: [
+            { key: '2020-12-01', doc_count: 2 },
+            { key: '{"school":"Synthetic"}', doc_count: 1 },
+          ],
+        },
+      },
+    });
+    expect(result.topIndustries).toEqual([]);
+    expect(result.topSkills).toEqual([]);
+    expect(result.countries).toEqual([]);
   });
 });

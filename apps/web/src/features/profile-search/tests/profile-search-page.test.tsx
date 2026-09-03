@@ -65,7 +65,7 @@ describe('ProfileSearchPage', () => {
     ).toBeInTheDocument();
   });
 
-  it('shows an empty-results message', () => {
+  it('shows unfiltered results when URL has no criteria', () => {
     mockedUseProfileSearch.mockReturnValue({
       isLoading: false,
       isError: false,
@@ -84,6 +84,35 @@ describe('ProfileSearchPage', () => {
     expect(
       screen.getByText('No profiles match your search.'),
     ).toBeInTheDocument();
+  });
+
+  it('clears an applied keyword from the input', async () => {
+    mockedUseProfileSearch.mockReturnValue({
+      isLoading: false,
+      isError: false,
+      data: {
+        data: [],
+        meta: { page: 1, limit: 20, total: 0, totalPages: 0, tookMs: 1 },
+      },
+    } as unknown as ReturnType<typeof useProfileSearch>);
+
+    render(
+      <MemoryRouter initialEntries={['/?q=engineer']}>
+        <ProfileSearchPage />
+      </MemoryRouter>,
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear search' }));
+
+    await waitFor(() =>
+      expect(mockedUseProfileSearch).toHaveBeenLastCalledWith(
+        expect.objectContaining({ q: '' }),
+      ),
+    );
+    expect(screen.getByLabelText('Search profiles')).toHaveValue('');
+    expect(
+      screen.queryByRole('button', { name: 'Clear search' }),
+    ).not.toBeInTheDocument();
   });
 });
 
@@ -107,5 +136,21 @@ describe('SearchFilters', () => {
 
     expect(onApply).toHaveBeenCalledWith([], 'Engineer');
     expect(onClear).toHaveBeenCalledTimes(1);
+  });
+
+  it('commits typed comma-separated skills when Apply is clicked', () => {
+    const onApply = vi.fn();
+    render(
+      <SearchFilters
+        params={{ q: '', skills: [], jobTitle: '', page: 1, limit: 20 }}
+        onApply={onApply}
+        onClear={vi.fn()}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText('Skills'), {
+      target: { value: ' TypeScript, SQL, typescript ' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+    expect(onApply).toHaveBeenCalledWith(['TypeScript', 'SQL'], '');
   });
 });

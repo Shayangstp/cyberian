@@ -2,7 +2,9 @@ import {
   Alert,
   Box,
   Button,
-  Grid,
+  Chip,
+  IconButton,
+  InputAdornment,
   Pagination,
   Stack,
   TextField,
@@ -25,6 +27,10 @@ export function ProfileSearchPage() {
   const [draft, setDraft] = useState(params.q);
   useEffect(() => setDraft(params.q), [params.q]);
   const search = useProfileSearch(params);
+  const hasCriteria = Boolean(
+    params.q || params.skills.length || params.jobTitle,
+  );
+  const highlightTerms = [params.q, ...params.skills, params.jobTitle];
   const update = (change: Partial<typeof params>) =>
     setUrl(serializeProfileSearchParams(withSearchChange(params, change)));
   return (
@@ -49,21 +55,88 @@ export function ProfileSearchPage() {
             placeholder="Search by name, title, company, skill, or industry"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
+            slotProps={{
+              input: {
+                endAdornment: params.q ? (
+                  <InputAdornment position="end">
+                    <IconButton
+                      aria-label="Clear search"
+                      edge="end"
+                      onClick={() => {
+                        setDraft('');
+                        update({ q: '' });
+                      }}
+                    >
+                      ×
+                    </IconButton>
+                  </InputAdornment>
+                ) : undefined,
+              },
+            }}
           />
           <Button type="submit" sx={{ mt: 1 }} variant="contained">
             Search
           </Button>
         </Box>
-        <Grid container spacing={3}>
-          <Grid item xs={12} md={3}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: 'minmax(0, 1fr)', md: '1fr 3fr' },
+            gap: 3,
+          }}
+        >
+          <Box sx={{ minWidth: 0 }}>
             <SearchFilters
               params={params}
               onApply={(skills, jobTitle) => update({ skills, jobTitle })}
               onClear={() => update({ skills: [], jobTitle: '' })}
             />
-          </Grid>
-          <Grid item xs={12} md={9}>
+          </Box>
+          <Box sx={{ minWidth: 0 }}>
             <Stack spacing={2} aria-label="Search results">
+              {hasCriteria && (
+                <Stack
+                  direction="row"
+                  flexWrap="wrap"
+                  gap={0.5}
+                  aria-label="Applied search criteria"
+                >
+                  {params.q && (
+                    <Chip
+                      label={`Keyword: ${params.q}`}
+                      onDelete={() => update({ q: '' })}
+                    />
+                  )}
+                  {params.skills.map((skill) => (
+                    <Chip
+                      key={skill}
+                      label={`Skill: ${skill}`}
+                      onDelete={() =>
+                        update({
+                          skills: params.skills.filter(
+                            (item) => item !== skill,
+                          ),
+                        })
+                      }
+                    />
+                  ))}
+                  {params.jobTitle && (
+                    <Chip
+                      label={`Title: ${params.jobTitle}`}
+                      onDelete={() => update({ jobTitle: '' })}
+                    />
+                  )}
+                  <Button
+                    size="small"
+                    onClick={() => {
+                      setDraft('');
+                      update({ q: '', skills: [], jobTitle: '' });
+                    }}
+                  >
+                    Clear all
+                  </Button>
+                </Stack>
+              )}
               {search.isLoading &&
                 [1, 2, 3].map((i) => <ProfileCardSkeleton key={i} />)}
               {search.isError && (
@@ -82,7 +155,11 @@ export function ProfileSearchPage() {
                 </Typography>
               )}
               {search.data?.data.map((profile) => (
-                <ProfileCard key={profile.id} profile={profile} />
+                <ProfileCard
+                  key={profile.id}
+                  profile={profile}
+                  highlightTerms={highlightTerms}
+                />
               ))}
               {search.data?.data.length === 0 && (
                 <Alert severity="info">No profiles match your search.</Alert>
@@ -91,12 +168,15 @@ export function ProfileSearchPage() {
                 <Pagination
                   page={params.page}
                   count={search.data.meta.totalPages}
-                  onChange={(_, page) => update({ page })}
+                  onChange={(_, page) => {
+                    update({ page });
+                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                  }}
                 />
               )}
             </Stack>
-          </Grid>
-        </Grid>
+          </Box>
+        </Box>
       </Stack>
     </main>
   );

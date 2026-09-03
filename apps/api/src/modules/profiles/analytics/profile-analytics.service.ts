@@ -28,10 +28,10 @@ export class ProfileAnalyticsService {
         aggs: {
           uniqueIndustries: cardinality('industry.keyword'),
           uniqueSkills: cardinality('skills.keyword'),
-          uniqueCountries: cardinality('country'),
+          uniqueCountries: cardinality('country.keyword'),
           topIndustries: terms('industry.keyword'),
           topSkills: terms('skills.keyword'),
-          countries: terms('country'),
+          countries: terms('country.keyword'),
         },
       });
       return mapProfileAnalytics(response);

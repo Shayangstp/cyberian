@@ -16,10 +16,10 @@ describe('profile search URL state', () => {
       skills: ['PostgreSQL', 'TypeScript'],
       jobTitle: 'Engineer',
       page: 1,
-      limit: 50,
+      limit: 10,
     });
     expect(serializeProfileSearchParams(value)).toBe(
-      'q=engineer&skills=PostgreSQL%2CTypeScript&jobTitle=Engineer&limit=50',
+      'q=engineer&skills=PostgreSQL%2CTypeScript&jobTitle=Engineer',
     );
   });
   it('resets page when query changes', () =>

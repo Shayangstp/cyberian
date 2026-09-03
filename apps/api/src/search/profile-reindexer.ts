@@ -1,7 +1,11 @@
 import type { Client } from '@elastic/elasticsearch';
 import type { PrismaClient, Profile } from '@prisma/client';
-import { mapProfileToSearchDocument } from './profile-document.mapper';
+import {
+  assertSearchDocumentSafe,
+  mapProfileToSearchDocument,
+} from './profile-document.mapper';
 import type { ProfileIndexManager } from './profile-index-manager';
+import type { ProfileSearchDocument } from './profile-search-document';
 export class ProfileReindexer {
   constructor(
     private readonly prisma: PrismaClient,
@@ -32,12 +36,29 @@ export class ProfileReindexer {
         throw new Error(
           `Indexed count mismatch: expected ${expected}, got ${actual}`,
         );
+      await this.verifyIndexQuality(index, expected);
       const previousIndex = await this.manager.switchAlias(index);
       return { index, previousIndex, indexed, expected, actual };
     } catch {
       throw new Error(
         `Reindex failed before alias switch; new index ${index} was left untouched for inspection`,
       );
+    }
+  }
+  private async verifyIndexQuality(index: string, expected: number) {
+    if (expected > 1000)
+      throw new Error('Index quality check exceeds safe result window');
+    const result = await this.client.search<ProfileSearchDocument>({
+      index,
+      size: expected,
+      query: { match_all: {} },
+      sort: [{ id: 'asc' }],
+    });
+    if (result.hits.hits.length !== expected)
+      throw new Error('Index quality count mismatch');
+    for (const hit of result.hits.hits) {
+      if (!hit._source) throw new Error('Index quality document missing');
+      assertSearchDocumentSafe(hit._source);
     }
   }
   private async bulk(index: string, rows: Profile[]) {

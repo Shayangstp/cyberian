@@ -14,6 +14,8 @@
     "db:studio": "tsx scripts/prisma-command.ts studio",
     "data:inspect": "tsx src/data/cli/inspect-dataset.ts",
     "data:import": "tsx src/data/cli/import-dataset.ts",
+    "data:audit": "tsx src/data/cli/audit-dataset.ts",
+    "data:rebuild": "tsx src/data/cli/rebuild-profile-data.ts",
     "search:index:create": "tsx src/search/cli/create-profile-index.ts",
     "search:reindex": "tsx src/search/cli/reindex-profiles.ts",
     "search:index:status": "tsx src/search/cli/profile-index-status.ts"

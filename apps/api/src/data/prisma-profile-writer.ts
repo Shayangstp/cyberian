@@ -52,7 +52,7 @@ export function createPrismaProfileWriter(
   };
 }
 
-function toPrismaData(profile: NormalizedProfile, importedAt: Date) {
+export function toPrismaData(profile: NormalizedProfile, importedAt: Date) {
   return {
     sourceKey: profile.sourceKey,
     linkedinId: profile.linkedinId,
@@ -82,7 +82,7 @@ function toPrismaData(profile: NormalizedProfile, importedAt: Date) {
   };
 }
 
-function profilesMatch(
+export function profilesMatch(
   existing: {
     linkedinId: string | null;
     linkedinUrl: string | null;
