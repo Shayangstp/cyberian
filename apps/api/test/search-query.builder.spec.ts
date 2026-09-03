@@ -59,11 +59,12 @@ describe('buildSearchQuery', () => {
     });
     expect(JSON.stringify(result.query)).toContain('"operator":"and"');
   });
-  it('uses case-insensitive AND skill filters and partial title matching', () => {
+  it('uses AND skills with partial title and industry matching', () => {
     const result = buildSearchQuery('profiles', {
       ...base,
       skills: ['TypeScript', 'PostgreSQL'],
       jobTitle: 'Engineer',
+      industry: 'Technology Services',
     });
     expect(result.query).toMatchObject({
       bool: {
@@ -71,6 +72,11 @@ describe('buildSearchQuery', () => {
           { term: { 'skills.keyword': 'typescript' } },
           { term: { 'skills.keyword': 'postgresql' } },
           { match: { jobTitle: { query: 'Engineer', operator: 'and' } } },
+          {
+            match: {
+              industry: { query: 'Technology Services', operator: 'and' },
+            },
+          },
         ],
       },
     });

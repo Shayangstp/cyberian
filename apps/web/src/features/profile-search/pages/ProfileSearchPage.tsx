@@ -28,9 +28,14 @@ export function ProfileSearchPage() {
   useEffect(() => setDraft(params.q), [params.q]);
   const search = useProfileSearch(params);
   const hasCriteria = Boolean(
-    params.q || params.skills.length || params.jobTitle,
+    params.q || params.skills.length || params.jobTitle || params.industry,
   );
-  const highlightTerms = [params.q, ...params.skills, params.jobTitle];
+  const highlightTerms = [
+    params.q,
+    ...params.skills,
+    params.jobTitle,
+    params.industry,
+  ];
   const update = (change: Partial<typeof params>) =>
     setUrl(serializeProfileSearchParams(withSearchChange(params, change)));
   return (
@@ -87,8 +92,10 @@ export function ProfileSearchPage() {
         <Box sx={{ minWidth: 0 }}>
           <SearchFilters
             params={params}
-            onApply={(skills, jobTitle) => update({ skills, jobTitle })}
-            onClear={() => update({ skills: [], jobTitle: '' })}
+            onApply={(skills, jobTitle, industry) =>
+              update({ skills, jobTitle, industry })
+            }
+            onClear={() => update({ skills: [], jobTitle: '', industry: '' })}
           />
         </Box>
         <Box sx={{ minWidth: 0 }}>
@@ -123,11 +130,22 @@ export function ProfileSearchPage() {
                     onDelete={() => update({ jobTitle: '' })}
                   />
                 )}
+                {params.industry && (
+                  <Chip
+                    label={`Industry: ${params.industry}`}
+                    onDelete={() => update({ industry: '' })}
+                  />
+                )}
                 <Button
                   size="small"
                   onClick={() => {
                     setDraft('');
-                    update({ q: '', skills: [], jobTitle: '' });
+                    update({
+                      q: '',
+                      skills: [],
+                      jobTitle: '',
+                      industry: '',
+                    });
                   }}
                 >
                   Clear all

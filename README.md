@@ -49,13 +49,14 @@ The web container serves the application through Nginx and proxies `/api` to the
 
 ```http
 GET /api/health
-GET /api/profiles/search?q=engineer&skills=TypeScript,SQL&jobTitle=Engineer&page=1&limit=10
+GET /api/profiles/search?q=engineer&skills=TypeScript,SQL&jobTitle=Engineer&industry=Technology&page=1&limit=10
 GET /api/profiles/analytics
 ```
 
 - `q` searches names, titles, companies, skills, industries, locations, countries, and summaries. Every entered word is required; exact phrases rank highest, selected fields support prefixes, and fuzzy matching starts with terms longer than three characters.
 - `skills` is comma-separated and uses AND semantics.
 - `jobTitle` is a partial, case-insensitive title filter.
+- `industry` is a partial, case-insensitive industry filter.
 - `page` starts at 1; `limit` defaults to 10 and cannot exceed 10.
 - Invalid or unknown parameters return 400. Search outages return a generic 503.
 

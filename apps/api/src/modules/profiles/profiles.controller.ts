@@ -39,6 +39,13 @@ export class ProfilesController {
     description: 'Job title matched with partial, case-insensitive terms.',
   })
   @ApiQuery({
+    name: 'industry',
+    required: false,
+    type: String,
+    example: 'Technology',
+    description: 'Industry matched with partial, case-insensitive terms.',
+  })
+  @ApiQuery({
     name: 'page',
     required: false,
     type: Number,

@@ -117,12 +117,19 @@ describe('ProfileSearchPage', () => {
 });
 
 describe('SearchFilters', () => {
-  it('applies a trimmed job-title filter and clears filters', () => {
+  it('applies trimmed title and industry filters and clears filters', () => {
     const onApply = vi.fn();
     const onClear = vi.fn();
     const { getByLabelText, getByRole } = render(
       <SearchFilters
-        params={{ q: '', skills: [], jobTitle: '', page: 1, limit: 10 }}
+        params={{
+          q: '',
+          skills: [],
+          jobTitle: '',
+          industry: '',
+          page: 1,
+          limit: 10,
+        }}
         onApply={onApply}
         onClear={onClear}
       />,
@@ -131,10 +138,13 @@ describe('SearchFilters', () => {
     fireEvent.change(getByLabelText('Job title'), {
       target: { value: ' Engineer ' },
     });
+    fireEvent.change(getByLabelText('Industry'), {
+      target: { value: ' Technology ' },
+    });
     fireEvent.click(getByRole('button', { name: 'Apply filters' }));
     fireEvent.click(getByRole('button', { name: 'Clear filters' }));
 
-    expect(onApply).toHaveBeenCalledWith([], 'Engineer');
+    expect(onApply).toHaveBeenCalledWith([], 'Engineer', 'Technology');
     expect(onClear).toHaveBeenCalledTimes(1);
   });
 
@@ -142,7 +152,14 @@ describe('SearchFilters', () => {
     const onApply = vi.fn();
     render(
       <SearchFilters
-        params={{ q: '', skills: [], jobTitle: '', page: 1, limit: 10 }}
+        params={{
+          q: '',
+          skills: [],
+          jobTitle: '',
+          industry: '',
+          page: 1,
+          limit: 10,
+        }}
         onApply={onApply}
         onClear={vi.fn()}
       />,
@@ -151,6 +168,6 @@ describe('SearchFilters', () => {
       target: { value: ' TypeScript, SQL, typescript ' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
-    expect(onApply).toHaveBeenCalledWith(['TypeScript', 'SQL'], '');
+    expect(onApply).toHaveBeenCalledWith(['TypeScript', 'SQL'], '', '');
   });
 });

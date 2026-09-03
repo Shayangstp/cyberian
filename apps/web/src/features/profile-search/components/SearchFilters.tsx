@@ -14,15 +14,17 @@ export function SearchFilters({
   onClear,
 }: {
   params: ProfileSearchParams;
-  onApply: (skills: string[], jobTitle: string) => void;
+  onApply: (skills: string[], jobTitle: string, industry: string) => void;
   onClear: () => void;
 }) {
   const [skills, setSkills] = useState(params.skills);
   const [skillInput, setSkillInput] = useState('');
   const [jobTitle, setJobTitle] = useState(params.jobTitle);
+  const [industry, setIndustry] = useState(params.industry);
   useEffect(() => {
     setSkills(params.skills);
     setJobTitle(params.jobTitle);
+    setIndustry(params.industry);
   }, [params]);
   const normalized = (values: string[]) => {
     const unique = new Map<string, string>();
@@ -49,6 +51,7 @@ export function SearchFilters({
         onApply(
           skillInput.trim() ? commitInput() : normalized(skills),
           jobTitle.trim(),
+          industry.trim(),
         );
       }}
     >
@@ -87,6 +90,11 @@ export function SearchFilters({
           label="Job title"
           value={jobTitle}
           onChange={(e) => setJobTitle(e.target.value)}
+        />
+        <TextField
+          label="Industry"
+          value={industry}
+          onChange={(e) => setIndustry(e.target.value)}
         />
         <Button type="submit" variant="contained">
           Apply filters

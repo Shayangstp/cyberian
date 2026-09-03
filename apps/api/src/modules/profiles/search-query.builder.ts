@@ -49,6 +49,20 @@ export function buildSearchQuery(alias: string, query: SearchProfilesQuery) {
           },
         ]
       : []),
+    ...(query.industry
+      ? [
+          {
+            match: {
+              industry: {
+                query: query.industry.trim(),
+                operator: 'and',
+                fuzziness: 'AUTO:4,8',
+                prefix_length: 1,
+              },
+            },
+          },
+        ]
+      : []),
   ];
   const keyword = query.q?.trim();
   const body = keyword

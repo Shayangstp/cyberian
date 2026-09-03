@@ -19,6 +19,11 @@ export class SearchProfilesQuery {
   @Transform(string)
   jobTitle?: string;
   @IsOptional()
+  @IsString()
+  @MaxLength(255)
+  @Transform(string)
+  industry?: string;
+  @IsOptional()
   @Transform(({ value }: { value: unknown }) =>
     Array.isArray(value)
       ? value.flatMap((v) => (typeof v === 'string' ? v.split(',') : []))

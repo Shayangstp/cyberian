@@ -8,18 +8,19 @@ describe('profile search URL state', () => {
   it('normalizes and serializes deterministically', () => {
     const value = parseProfileSearchParams(
       new URLSearchParams(
-        'q= engineer &skills=PostgreSQL, TypeScript,PostgreSQL&jobTitle= Engineer &page=no&limit=99',
+        'q= engineer &skills=PostgreSQL, TypeScript,PostgreSQL&jobTitle= Engineer &industry= Technology &page=no&limit=99',
       ),
     );
     expect(value).toEqual({
       q: 'engineer',
       skills: ['PostgreSQL', 'TypeScript'],
       jobTitle: 'Engineer',
+      industry: 'Technology',
       page: 1,
       limit: 10,
     });
     expect(serializeProfileSearchParams(value)).toBe(
-      'q=engineer&skills=PostgreSQL%2CTypeScript&jobTitle=Engineer',
+      'q=engineer&skills=PostgreSQL%2CTypeScript&jobTitle=Engineer&industry=Technology',
     );
   });
   it('resets page when query changes', () =>
