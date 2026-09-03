@@ -19,6 +19,7 @@ async function main(): Promise<void> {
   await requireFile(dataset, 'Required dataset is missing');
 
   run('docker', ['compose', 'up', '-d', '--wait', 'postgres', 'elasticsearch']);
+  run(pnpmCommand, ['db:generate']);
   run(pnpmCommand, ['db:migrate:deploy']);
   run(pnpmCommand, ['data:import']);
   run(pnpmCommand, ['search:reindex']);

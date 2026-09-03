@@ -27,7 +27,7 @@
     "infra:up": "docker compose up -d --wait postgres elasticsearch",
     "infra:down": "docker compose stop postgres elasticsearch",
     "setup": "pnpm --filter @cyberian/api exec tsx ../../scripts/setup.ts",
-    "lint": "eslint . --max-warnings 0",
+    "lint": "pnpm shared:build && pnpm db:generate && eslint . --max-warnings 0",
     "test": "pnpm shared:build && pnpm --filter @cyberian/api test && pnpm --filter @cyberian/web test",
     "typecheck": "tsc -p tsconfig.json --noEmit && pnpm shared:build && pnpm db:generate && pnpm --filter @cyberian/api typecheck && pnpm --filter @cyberian/web typecheck",
     "format": "prettier --write .",
