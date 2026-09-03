@@ -1,137 +1,184 @@
-# Cyberian
+# LinkedIn Profile Search
 
 ## Project Overview
 
-This repository contains a LinkedIn profile search technical assignment. PostgreSQL stores the normalized profile data used by the application; search infrastructure remains a future stage.
+A local technical-assignment application for importing a supplied profile CSV, searching approved professional fields, and viewing aggregate analytics. It is deliberately not an identity, authentication, or profile-enrichment product.
 
 ## Architecture
 
-- `apps/api` — NestJS REST API with validated configuration and a health endpoint.
-- `apps/web` — React and Vite client with routing, query, theme, and error-boundary providers.
-- `packages/shared` — intentionally small package for contracts shared between applications.
+```mermaid
+flowchart TD
+  Web[React / Vite web] -->|REST| API[NestJS API]
+  API --> PG[(PostgreSQL / Prisma)]
+  API --> ES[(Elasticsearch)]
+  Import[CSV importer] --> PG
+  PG --> Reindex[Reindexer]
+  Reindex --> ES
+```
 
-PostgreSQL is the canonical source of truth. The import pipeline writes only a deliberate whitelist of normalized professional profile fields. Elasticsearch will be introduced later as a replaceable search projection, not as the authoritative data store.
+PostgreSQL is the durable source of truth. Import normalizes and writes profiles there; reindex reads PostgreSQL and safely replaces the Elasticsearch alias. Elasticsearch is a derived read/search index. The frontend never accesses either store directly. `packages/shared` contains transport contracts used by both applications.
 
 ## Tech Stack
 
-- Node.js 22 and pnpm 9 workspaces
-- TypeScript with strict compiler settings
-- NestJS and Jest
-- PostgreSQL 16 and Prisma
-- Streaming CSV ingestion with `csv-parse`
-- React, Vite, Material UI, TanStack Query, React Router, and Vitest
-- ESLint and Prettier
-- Docker Compose
+Node.js 22, pnpm 9, TypeScript, NestJS, Prisma/PostgreSQL 16, Elasticsearch 8.19, React/Vite, Material UI, TanStack Query, Jest, Vitest, Docker Compose, ESLint, and Prettier.
 
-Elasticsearch is planned for a later stage and is not implemented yet.
+## Prerequisites
 
-## Development
+Node 22, pnpm 9, Docker Compose, and Make are required. Docker needs enough memory for Elasticsearch (the local container is configured for a 512 MB heap).
 
-Requirements: Node.js 22, pnpm 9, Make, and Docker with Compose.
+## Getting Started
 
-For a first-time setup:
+Place the supplied dataset exactly at `data/raw/300-user-linkedin.csv`, then run:
 
 ```bash
+cp .env.example .env
+pnpm install
 make setup
 make dev
 ```
 
-`make setup` checks local tools, creates the root `.env` when needed, installs locked dependencies, starts PostgreSQL, generates Prisma, and applies development migrations. It does not import the private dataset. `make dev` keeps PostgreSQL in Docker while running the API and web client locally in watch mode; `Ctrl+C` stops those host processes and leaves infrastructure running. Use `make infra-down` to stop PostgreSQL without deleting its volume.
+`make setup` checks the dataset, starts healthy PostgreSQL and Elasticsearch, applies committed migrations, imports idempotently, rebuilds the search index, and prints only aggregate count status. It exits non-zero on any failure. It never prints raw rows. The direct pnpm equivalent is `pnpm run setup` (`pnpm setup` is a reserved pnpm installer command).
 
-The API runs at `http://localhost:3000` and exposes `GET /api/health`. The web client runs at `http://localhost:5173` (ports are configured in `.env.example`).
+## Local Development
 
-Use `make app-up` when the complete API, web client, and infrastructure should run in Docker. Unlike `make dev`, it does not run host watch processes.
+`make infra-up` starts only PostgreSQL and Elasticsearch. `make dev` starts that infrastructure plus host watch processes. After setup:
 
-## Database and Dataset
+- Frontend: `http://localhost:5173`
+- API: `http://localhost:3000/api`
+- Swagger: `http://localhost:3000/api/docs`
+- Search: `http://localhost:5173/search`
+- Analytics: `http://localhost:5173/analytics`
 
-Copy the root environment example before running database commands:
+Use `POSTGRES_PORT`, `ELASTICSEARCH_PORT`, `API_PORT`, and `WEB_PORT` for host-port conflicts. If `WEB_PORT` changes, set `WEB_ORIGIN` to its matching browser origin. Host development connects to `localhost`; containers connect to `postgres` and `elasticsearch` service names.
+
+## Docker Development
+
+Run host initialization first (the raw dataset is intentionally never copied into an image):
 
 ```bash
 cp .env.example .env
-docker compose up -d postgres
-pnpm db:generate
-pnpm db:migrate
+pnpm install
+make setup
+make docker-up
 ```
 
-The private client dataset must be placed at `data/raw/300-user-linkedin.csv`. Files in `data/raw` and generated reports in `data/processed` are ignored by Git and must not be committed.
+`make docker-up` builds and waits for `postgres`, `elasticsearch`, `api`, and `web`. The web container proxies `/api` internally to the API, so the Docker browser application is same-origin. `docker compose down` preserves `postgres_data` and `elasticsearch_data`; `docker compose down -v` deletes them and is intentionally never run automatically.
 
-Inspect the dataset without writing to the database:
+## Environment Variables
+
+All runtime configuration is validated by the API environment schema. `.env.example` has local-only defaults, not production secrets.
+
+| Variable                                                               | Purpose                                                |
+| ---------------------------------------------------------------------- | ------------------------------------------------------ |
+| `NODE_ENV`, `API_PORT`                                                 | API mode and host API port                             |
+| `WEB_ORIGIN`, `VITE_API_BASE_URL`                                      | allowed browser origin and host web API URL            |
+| `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_PORT`   | local PostgreSQL container configuration and host port |
+| `DATABASE_URL`                                                         | host Prisma connection URL (`localhost`)               |
+| `ELASTICSEARCH_URL`, `ELASTICSEARCH_PORT`, `ELASTICSEARCH_INDEX_ALIAS` | host search URL/port and stable alias                  |
+| `REQUEST_SIZE_LIMIT`                                                   | JSON and URL-encoded body limit (default `100kb`)      |
+| `RATE_LIMIT_MAX`, `RATE_LIMIT_WINDOW_MS`                               | in-memory request limit and window                     |
+| `WEB_PORT`                                                             | optional Docker web host port (defaults to `5173`)     |
+
+Compose constructs its own internal database URL with `postgres` and sets Elasticsearch to `http://elasticsearch:9200`; it does not reuse host `localhost` URLs inside containers.
+
+## Dataset Placement and Privacy
+
+The source file must be `data/raw/300-user-linkedin.csv`. `data/raw/*` and generated `data/processed/*` data are ignored while their `.gitkeep` files remain tracked. The Docker context excludes both directories; no raw data is mounted or embedded in the normal stack.
+
+Phone/mobile numbers, email, addresses/street/postal data, birth information, unrelated social identifiers, source keys, internal LinkedIn identifiers, raw rows, and import diagnostics are excluded. The database whitelist, Elasticsearch mapping, and API response mapper each permit only approved professional fields. Tests and documentation use synthetic fixtures only.
+
+## Database Migration
+
+```bash
+pnpm db:migrate:deploy
+# development-only migration creation: pnpm db:migrate
+```
+
+## Importing the Dataset
 
 ```bash
 pnpm data:inspect
-```
-
-Validate the complete normalization pipeline without database writes:
-
-```bash
 pnpm data:import -- --dry-run
-```
-
-Run the idempotent import:
-
-```bash
 pnpm data:import
 ```
 
-Rows whose width differs from the CSV header are skipped without shifting columns. Duplicate and repeated records are resolved by a deterministic source key and upserted, so repeated imports do not create duplicate profiles. Console output and `data/processed/import-report.json` contain aggregate counts and reason codes only.
+The import is idempotent and reports aggregates only. A missing dataset returns a clear failure rather than silently creating an empty database.
 
-## Source Archive Safety
-
-Create a final source archive only from committed Git files:
+## Elasticsearch Architecture
 
 ```bash
-git archive --format=zip --output ../cyberian-source.zip HEAD
-```
-
-Do not use a broad command such as `zip -r ... *`: Git-ignored private datasets, generated import reports, and build output can still be included.
-
-## Elasticsearch Search Projection
-
-PostgreSQL remains canonical. Elasticsearch 8.19.0 is a local derived projection, accessed with the pinned official `@elastic/elasticsearch` 8.19.0 client; no raw dataset is indexed directly. Local Compose disables Elasticsearch security solely for local development and uses a persistent volume. Production must enable security and replicas.
-
-```bash
-docker compose up -d postgres elasticsearch
-pnpm db:migrate:deploy
-pnpm search:index:create
 pnpm search:reindex
 pnpm search:index:status
 ```
 
-`ELASTICSEARCH_URL`, `ELASTICSEARCH_PORT`, and `ELASTICSEARCH_INDEX_ALIAS` configure the local projection. The stable `profiles` alias is switched atomically only after a versioned `profiles-v1-<timestamp>` index has been bulk-populated and count-verified. Old indexes are intentionally retained. Mapping is `dynamic: strict` and accepts only the normalized professional whitelist; sensitive/raw fields and import diagnostics are excluded.
+Reindexing creates and populates a versioned physical index from PostgreSQL, verifies its count, then switches the configured alias. It is not a direct CSV index. `search:index:status` reports PostgreSQL and Elasticsearch counts; after importing the supplied dataset, both should be `248`.
 
-The persistence whitelist is limited to LinkedIn identity/URL, names, professional title and role, industry, current company, general location/country, professional summary, inferred years of experience, skills, and sanitized experience/education data. Phone numbers, emails, street/postal addresses, birth data, unrelated social identifiers/usernames, unknown source fields, and complete raw rows are discarded during normalization.
+## Search API
 
-## Commands
+```http
+GET /api/health
+GET /api/profiles/search?q=engineer&skills=TypeScript,SQL&jobTitle=Engineer&page=1&limit=20
+GET /api/profiles/analytics
+```
 
-| Command           | Purpose                                      |
-| ----------------- | -------------------------------------------- |
-| `make help`       | List development commands                    |
-| `make doctor`     | Check required local tools                   |
-| `make env`        | Create `.env` without overwriting it         |
-| `make install`    | Install locked dependencies                  |
-| `make infra-up`   | Start healthy PostgreSQL                     |
-| `make infra-down` | Stop PostgreSQL, preserving its volume       |
-| `make infra-logs` | Follow infrastructure logs                   |
-| `make dev`        | Run API and web locally with infrastructure  |
-| `make dev-api`    | Run only the API locally                     |
-| `make dev-web`    | Run only the web client locally              |
-| `make app-up`     | Build and run the complete Docker stack      |
-| `make app-logs`   | Follow all Compose service logs              |
-| `make down`       | Stop and remove Compose containers           |
-| `make check`      | Run formatting, lint, typecheck, test, build |
+`q` and `jobTitle` are strings; `skills` is comma-separated and uses AND semantics; `page` starts at 1; `limit` is 1–50 (default 20). Invalid or unknown query parameters return a safe 400. Elasticsearch outages return a generic 503, not connection details. Swagger is available at `/api/docs`.
 
-The underlying `pnpm` database, data, quality, and build commands remain available as documented below and are also exposed by corresponding Make targets (`make db-generate`, `make db-migrate`, `make db-migrate-deploy`, `make db-studio`, `make data-inspect`, `make data-import-dry-run`, and `make data-import`).
+## Analytics API
 
-## Environment
+`GET /api/profiles/analytics` returns aggregate totals and top industry, skill, and country buckets only. It never returns profile documents or raw Elasticsearch responses.
 
-Configuration is documented in `.env.example`:
+## Swagger
 
-- `NODE_ENV` — backend runtime environment.
-- `API_PORT` — backend HTTP port.
-- `WEB_ORIGIN` — allowed browser origin for CORS.
-- `DATABASE_URL` — PostgreSQL connection URL used by Prisma.
-- `VITE_API_BASE_URL` — backend base URL used by the web client.
+At runtime, open `http://localhost:3000/api/docs` (or the configured API port) for the generated OpenAPI documentation.
 
-## Current Status
+## Makefile Commands
 
-Dataset inspection and PostgreSQL persistence are implemented. Indexing, profile search, and user-facing search functionality will be implemented in subsequent development stages.
+Run `make help` for the concise command list. Important targets are `setup`, `infra-up`, `infra-down`, `dev`, `dev-api`, `dev-web`, `docker-up`, `docker-down`, `docker-build`, `logs`, `ps`, `migrate`, `data-import`, `search-reindex`, `test`, `lint`, `typecheck`, `build`, and `check`. Root pnpm equivalents include `pnpm infra:up`, `pnpm infra:down`, `pnpm run setup`, `pnpm db:migrate:deploy`, `pnpm data:import`, `pnpm search:reindex`, and `pnpm check`.
+
+## Testing and Quality
+
+```bash
+pnpm format:check
+pnpm lint
+pnpm typecheck
+pnpm test
+pnpm build
+# or: make check
+```
+
+The API suite includes in-memory HTTP integration tests; it does not need Docker, PostgreSQL, Elasticsearch, or real dataset values.
+
+## Security Decisions
+
+The API uses Helmet, configured-origin CORS, strict DTO validation with unknown-query rejection, pagination/query limits, a 100 KB request-size limit, in-memory rate limiting, safe 503 errors, environment validation, and response whitelists. Raw data is never served. In-memory rate limiting fits this single-instance assignment; horizontally scaled production would need shared rate-limit storage.
+
+## Data Privacy
+
+Raw data is untracked, excluded from Docker builds, and is not logged. Only the professional whitelist is normalized, persisted, indexed, and returned. No examples, tests, or reports contain real profile values.
+
+## Architecture Decisions
+
+- **PostgreSQL and Elasticsearch:** PostgreSQL provides durable relational storage and deterministic imports; Elasticsearch provides full-text search, filtering, relevance, and aggregations.
+- **React/Vite instead of Next.js:** this is an authentication-free client-side search application with no SSR or SEO requirement, so Vite is simpler.
+- **No Redis:** the dataset and expected request volume do not justify another stateful service. Elasticsearch search behavior and TanStack Query client caching are sufficient here; Elasticsearch is not treated as a general application cache.
+- **Personal-data exclusion:** unnecessary personal information is rejected, while explicitly whitelisted professional fields are retained.
+- **URL-driven search state:** URLs survive refreshes, are shareable, work with browser navigation, and avoid unnecessary global state.
+
+## Trade-offs
+
+Compose disables Elasticsearch security only for local review. The stack uses persistent local volumes and one API instance; production would require secret management, Elasticsearch security, backup/retention policies, and shared rate-limit storage.
+
+## Troubleshooting
+
+- **Port 5432 or 9200 busy:** change `POSTGRES_PORT` or `ELASTICSEARCH_PORT` in `.env`, then rerun `make infra-up`.
+- **Elasticsearch fails to start:** allocate more Docker memory, then inspect `make logs` or `docker compose logs elasticsearch`.
+- **Dataset missing:** put the supplied file at `data/raw/300-user-linkedin.csv`; `make setup` names the missing path.
+- **Migration failure:** confirm `make ps` reports PostgreSQL healthy, then rerun `make migrate`.
+- **Empty search or count mismatch:** run `make search-reindex`, then `pnpm search:index:status`.
+- **CORS error during host development:** ensure `WEB_ORIGIN` exactly matches the Vite origin and restart the API.
+- **Stale Docker images:** run `make docker-build` followed by `make docker-up`; do not delete volumes as a first troubleshooting step.
+- **Health and logs:** use `make ps` and `make logs`.
+
+## Future Improvements
+
+Production deployment would add secret management, authenticated Elasticsearch, shared rate-limit storage, backup policies, and further web bundle splitting. The current Vite build retains its main-chunk advisory intentionally rather than hiding it.
