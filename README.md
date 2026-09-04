@@ -145,26 +145,6 @@ This checks formatting, runs ESLint and TypeScript, executes API and frontend te
 
 The API also uses Helmet, configured-origin CORS, strict DTO validation, query and pagination limits, a 100 KB request-body limit, rate limiting, validated environment configuration, and explicit public-response mappers.
 
-## Privacy and security
-
-The raw dataset, generated reports, and local `.env` files are ignored by Git and excluded from Docker build contexts. Do not force-add them to a commit.
-
-Phone numbers, email addresses, street addresses, birth information, unrelated social identifiers, source keys, internal LinkedIn identifiers, raw rows, and import diagnostics are never returned by the public API.
-
-## Submission archive
-
-After the final changes have been reviewed and committed, create the submission from Git rather than zipping the working directory:
-
-```bash
-git archive \
-  --format=zip \
-  --prefix=cyberian/ \
-  --output=../cyberian-submission.zip \
-  HEAD
-```
-
-Inspect the archive before sending it. It must not contain `.git`, `.env`, the raw dataset, processed import reports, secrets, `node_modules`, build `dist` directories, or coverage output. Because `git archive` reads committed files from `HEAD`, uncommitted fixes are not included; commit only after completing the final review.
-
 ## Configuration and troubleshooting
 
 Local defaults are documented in `.env.example`. Common settings include `API_PORT`, `WEB_ORIGIN`, `DATABASE_URL`, `ELASTICSEARCH_URL`, `ELASTICSEARCH_INDEX_ALIAS`, `POSTGRES_PORT`, `ELASTICSEARCH_PORT`, `REQUEST_SIZE_LIMIT`, `RATE_LIMIT_MAX`, and `RATE_LIMIT_WINDOW_MS`.
