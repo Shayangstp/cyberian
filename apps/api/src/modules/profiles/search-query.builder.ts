@@ -16,6 +16,12 @@ const PREFIX_FIELDS = [
   'jobTitle^5',
   'currentCompanyName^4',
 ] as const;
+const EXPERIENCE_FIELDS = [
+  'experience.title^4',
+  'experience.company^3',
+  'experience.companyname^3',
+] as const;
+const EXPERIENCE_TITLE_FIELDS = ['experience.title'] as const;
 
 export function buildSearchQuery(alias: string, query: SearchProfilesQuery) {
   const skills = [
@@ -35,36 +41,33 @@ export function buildSearchQuery(alias: string, query: SearchProfilesQuery) {
   const filters = [
     // Each skill is required: multiple skills deliberately use AND semantics.
     ...skills.map((skill) => ({ term: { 'skills.keyword': skill } })),
-    ...(query.jobTitle
+    ...(query.jobTitle?.trim()
       ? [
           {
-            match: {
-              jobTitle: {
-                query: query.jobTitle.trim(),
-                operator: 'and',
-                fuzziness: 'AUTO:4,8',
-                prefix_length: 1,
-              },
+            bool: {
+              should: [
+                controlledTextFilter(normalizeWhitespace(query.jobTitle), [
+                  'jobTitle',
+                ]),
+                nestedTextFilter(
+                  normalizeWhitespace(query.jobTitle),
+                  EXPERIENCE_TITLE_FIELDS,
+                ),
+              ],
+              minimum_should_match: 1,
             },
           },
         ]
       : []),
-    ...(query.industry
+    ...(query.industry?.trim()
       ? [
-          {
-            match: {
-              industry: {
-                query: query.industry.trim(),
-                operator: 'and',
-                fuzziness: 'AUTO:4,8',
-                prefix_length: 1,
-              },
-            },
-          },
+          controlledTextFilter(normalizeWhitespace(query.industry), [
+            'industry',
+          ]),
         ]
       : []),
   ];
-  const keyword = query.q?.trim();
+  const keyword = query.q ? normalizeWhitespace(query.q) : '';
   const body = keyword
     ? {
         bool: {
@@ -72,22 +75,9 @@ export function buildSearchQuery(alias: string, query: SearchProfilesQuery) {
             {
               bool: {
                 should: [
-                  {
-                    multi_match: {
-                      query: keyword,
-                      fields: SEARCH_FIELDS,
-                      operator: 'and',
-                      fuzziness: 'AUTO:4,8',
-                      prefix_length: 1,
-                    },
-                  },
-                  {
-                    multi_match: {
-                      query: keyword,
-                      fields: PREFIX_FIELDS,
-                      type: 'phrase_prefix',
-                    },
-                  },
+                  tokenMatch(keyword, SEARCH_FIELDS),
+                  prefixMatch(keyword, PREFIX_FIELDS),
+                  nestedKeywordMatch(keyword),
                 ],
                 minimum_should_match: 1,
               },
@@ -99,7 +89,21 @@ export function buildSearchQuery(alias: string, query: SearchProfilesQuery) {
                 query: keyword,
                 fields: SEARCH_FIELDS,
                 type: 'phrase',
-                boost: 2,
+                boost: 6,
+              },
+            },
+            {
+              nested: {
+                path: 'experience',
+                score_mode: 'max',
+                query: {
+                  multi_match: {
+                    query: keyword,
+                    fields: EXPERIENCE_FIELDS,
+                    type: 'phrase',
+                    boost: 6,
+                  },
+                },
               },
             },
           ],
@@ -114,9 +118,97 @@ export function buildSearchQuery(alias: string, query: SearchProfilesQuery) {
     from,
     size: query.limit,
     track_total_hits: true,
+    ...(keyword
+      ? {
+          highlight: {
+            fields: {
+              skills: { number_of_fragments: 0 },
+              summary: { fragment_size: 240, number_of_fragments: 1 },
+            },
+          },
+        }
+      : {}),
     query: body,
     sort: query.q
       ? [{ _score: 'desc' }, { 'fullName.keyword': 'asc' }, { id: 'asc' }]
       : [{ 'fullName.keyword': 'asc' }, { id: 'asc' }],
+  };
+}
+
+function normalizeWhitespace(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function supportsFuzziness(value: string): boolean {
+  return value.split(' ').every((term) => term.length >= 4);
+}
+
+function tokenMatch(query: string, fields: readonly string[]) {
+  return {
+    multi_match: {
+      query,
+      fields,
+      operator: 'and',
+      boost: 2,
+      ...(supportsFuzziness(query)
+        ? { fuzziness: 'AUTO:4,8', prefix_length: 2 }
+        : {}),
+    },
+  };
+}
+
+function prefixMatch(query: string, fields: readonly string[]) {
+  return {
+    multi_match: {
+      query,
+      fields,
+      type: 'bool_prefix',
+      operator: 'and',
+    },
+  };
+}
+
+function nestedKeywordMatch(query: string) {
+  return {
+    nested: {
+      path: 'experience',
+      score_mode: 'max',
+      query: {
+        bool: {
+          should: [
+            tokenMatch(query, EXPERIENCE_FIELDS),
+            prefixMatch(query, EXPERIENCE_FIELDS),
+          ],
+          minimum_should_match: 1,
+        },
+      },
+    },
+  };
+}
+
+function controlledTextFilter(query: string, fields: readonly string[]) {
+  return {
+    bool: {
+      should: [
+        {
+          multi_match: {
+            query,
+            fields,
+            operator: 'and',
+          },
+        },
+        prefixMatch(query, fields),
+      ],
+      minimum_should_match: 1,
+    },
+  };
+}
+
+function nestedTextFilter(query: string, fields: readonly string[]) {
+  return {
+    nested: {
+      path: 'experience',
+      query: controlledTextFilter(query, fields),
+    },
   };
 }

@@ -94,9 +94,10 @@ GET /api/profiles/analytics
 
 Search behavior:
 
-- `q` searches names, titles, companies, skills, industries, locations, countries, and summaries. Every entered word is required. Exact phrases rank highest, selected fields support prefixes, and fuzzy matching applies to terms longer than three characters.
-- `skills` accepts a comma-separated list and uses AND semantics.
-- `jobTitle` and `industry` are partial, case-insensitive filters.
+- `q` searches names, top-level professional fields, skills, and safe structured experience titles and company names. Every entered word is required. Exact phrases rank highest, full-token matches rank above intentional final-word prefixes, and conservative fuzziness applies only when every term is longer than three characters.
+- `skills` accepts up to ten comma-separated values. Values are normalized and deduplicated, exact skill terms are matched case-insensitively, and multiple skills use AND semantics.
+- `jobTitle` matches either the reliable top-level title or a safe structured experience title. Matching is case-insensitive, requires every word, and allows the final word to be an intentional prefix.
+- `industry` is case-insensitive, whitespace-normalized, requires every word, and allows the final word to be an intentional prefix. Source profiles without a reliable industry remain blank rather than receiving a guessed value.
 - `page` starts at `1`.
 - `limit` defaults to `10` and cannot exceed `10`.
 - Invalid or unknown parameters return `400`; search outages return a generic `503` response.
@@ -149,6 +150,20 @@ The API also uses Helmet, configured-origin CORS, strict DTO validation, query a
 The raw dataset, generated reports, and local `.env` files are ignored by Git and excluded from Docker build contexts. Do not force-add them to a commit.
 
 Phone numbers, email addresses, street addresses, birth information, unrelated social identifiers, source keys, internal LinkedIn identifiers, raw rows, and import diagnostics are never returned by the public API.
+
+## Submission archive
+
+After the final changes have been reviewed and committed, create the submission from Git rather than zipping the working directory:
+
+```bash
+git archive \
+  --format=zip \
+  --prefix=cyberian/ \
+  --output=../cyberian-submission.zip \
+  HEAD
+```
+
+Inspect the archive before sending it. It must not contain `.git`, `.env`, the raw dataset, processed import reports, secrets, `node_modules`, build `dist` directories, or coverage output. Because `git archive` reads committed files from `HEAD`, uncommitted fixes are not included; commit only after completing the final review.
 
 ## Configuration and troubleshooting
 

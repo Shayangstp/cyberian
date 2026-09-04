@@ -26,8 +26,11 @@ export function ProfileCard({
   const country = display(profile.country);
   const industry = display(profile.industry);
   const summary = display(profile.summary);
+  const summaryExcerpt = display(profile.matchContext?.summary);
+  const visibleSummary = expanded ? summary : (summaryExcerpt ?? summary);
   const skills = prioritizeMatchingSkills(
     profile.skills.filter((skill) => Boolean(display(skill))),
+    profile.matchContext?.skills ?? [],
     highlightTerms,
   );
   const initials = (fullName ?? '?')
@@ -49,7 +52,7 @@ export function ProfileCard({
               />
             </Typography>
             {[
-              jobTitle && [jobTitle, company].filter(Boolean).join(' · '),
+              [jobTitle, company].filter(Boolean).join(' · '),
               [location, country].filter(Boolean).join(', '),
               industry,
             ]
@@ -59,7 +62,7 @@ export function ProfileCard({
                   <HighlightedText text={value} terms={highlightTerms} />
                 </Typography>
               ))}
-            {summary && (
+            {visibleSummary && (
               <Typography
                 sx={{
                   ...(expanded
@@ -72,18 +75,20 @@ export function ProfileCard({
                       }),
                 }}
               >
-                <HighlightedText text={summary} terms={highlightTerms} />
+                <HighlightedText text={visibleSummary} terms={highlightTerms} />
               </Typography>
             )}
-            {summary && summary.length > 280 && (
-              <Button
-                size="small"
-                onClick={() => setExpanded((value) => !value)}
-                aria-expanded={expanded}
-              >
-                {expanded ? 'Show less' : 'Show more'}
-              </Button>
-            )}
+            {summary &&
+              (summary.length > 280 ||
+                Boolean(summaryExcerpt && summaryExcerpt !== summary)) && (
+                <Button
+                  size="small"
+                  onClick={() => setExpanded((value) => !value)}
+                  aria-expanded={expanded}
+                >
+                  {expanded ? 'Show less' : 'Show more'}
+                </Button>
+              )}
             <Stack direction="row" flexWrap="wrap" gap={0.5}>
               {skills.slice(0, 6).map((skill) => (
                 <Chip
@@ -137,13 +142,24 @@ function escapeRegex(value: string) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-function prioritizeMatchingSkills(skills: string[], terms: string[]) {
-  const filters = new Set(
-    terms.map((term) => term.trim().toLocaleLowerCase()).filter(Boolean),
+function prioritizeMatchingSkills(
+  skills: string[],
+  matchedSkills: string[],
+  terms: string[],
+) {
+  const highlighted = new Set(
+    matchedSkills.map((skill) => skill.trim().toLocaleLowerCase()),
   );
+  const filters = [
+    terms.map((term) => term.trim().toLocaleLowerCase()).filter(Boolean),
+  ].flat();
   return [...skills].sort((a, b) => {
-    const aMatches = filters.has(a.toLocaleLowerCase());
-    const bMatches = filters.has(b.toLocaleLowerCase());
+    const aValue = a.toLocaleLowerCase();
+    const bValue = b.toLocaleLowerCase();
+    const aMatches =
+      highlighted.has(aValue) || filters.some((term) => aValue.includes(term));
+    const bMatches =
+      highlighted.has(bValue) || filters.some((term) => bValue.includes(term));
     return Number(bMatches) - Number(aMatches);
   });
 }

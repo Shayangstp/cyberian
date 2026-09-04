@@ -114,6 +114,100 @@ describe('ProfileSearchPage', () => {
       screen.queryByRole('button', { name: 'Clear search' }),
     ).not.toBeInTheDocument();
   });
+
+  it('updates results and request state after all filters are applied and cleared', async () => {
+    mockedUseProfileSearch.mockImplementation(
+      (params) =>
+        ({
+          isLoading: false,
+          isError: false,
+          data: {
+            data: params.jobTitle
+              ? [
+                  {
+                    id: 'filtered',
+                    fullName: 'Filtered Engineer',
+                    skills: ['TypeScript'],
+                  },
+                ]
+              : [],
+            meta: {
+              page: 1,
+              limit: 10,
+              total: params.jobTitle ? 1 : 0,
+              totalPages: params.jobTitle ? 1 : 0,
+              tookMs: 1,
+            },
+          },
+        }) as unknown as ReturnType<typeof useProfileSearch>,
+    );
+
+    render(
+      <MemoryRouter initialEntries={['/?q=engineer']}>
+        <ProfileSearchPage />
+      </MemoryRouter>,
+    );
+    fireEvent.change(screen.getByLabelText('Skills'), {
+      target: { value: 'TypeScript' },
+    });
+    fireEvent.change(screen.getByLabelText('Job title'), {
+      target: { value: 'software eng' },
+    });
+    fireEvent.change(screen.getByLabelText('Industry'), {
+      target: { value: 'information tech' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply filters' }));
+
+    await waitFor(() =>
+      expect(mockedUseProfileSearch).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          q: 'engineer',
+          skills: ['TypeScript'],
+          jobTitle: 'software eng',
+          industry: 'information tech',
+        }),
+      ),
+    );
+    expect(
+      screen.getByRole('heading', { name: 'Filtered Engineer' }),
+    ).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear filters' }));
+    await waitFor(() =>
+      expect(mockedUseProfileSearch).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          q: 'engineer',
+          skills: [],
+          jobTitle: '',
+          industry: '',
+        }),
+      ),
+    );
+  });
+
+  it('keeps the generic error state and retry action', () => {
+    const refetch = vi.fn();
+    mockedUseProfileSearch.mockReturnValue({
+      isLoading: false,
+      isError: true,
+      data: undefined,
+      refetch,
+    } as unknown as ReturnType<typeof useProfileSearch>);
+
+    render(
+      <MemoryRouter initialEntries={['/?q=engineer']}>
+        <ProfileSearchPage />
+      </MemoryRouter>,
+    );
+
+    expect(
+      screen.getByText(
+        'Profile search is temporarily unavailable. Please try again.',
+      ),
+    ).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
+    expect(refetch).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe('SearchFilters', () => {

@@ -12,6 +12,10 @@ export interface ProfileSearchResult {
   summary?: string;
   skills: string[];
   linkedinUrl?: string;
+  matchContext?: {
+    skills?: string[];
+    summary?: string;
+  };
 }
 export interface ProfileSearchResponse {
   data: ProfileSearchResult[];

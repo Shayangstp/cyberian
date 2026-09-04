@@ -4,7 +4,10 @@ import {
   publicValueIssue,
   type PublicFieldKind,
 } from '../../data/public-profile-value-guards';
-export function mapPublicProfile(source: ProfileSearchDocument) {
+export function mapPublicProfile(
+  source: ProfileSearchDocument,
+  highlight?: Record<string, string[]>,
+) {
   const {
     id,
     fullName,
@@ -17,6 +20,12 @@ export function mapPublicProfile(source: ProfileSearchDocument) {
     skills,
     linkedinUrl,
   } = source;
+  const matchedSkills = safeHighlights(highlight?.skills, 'skill');
+  const matchedSummary = safeHighlights(highlight?.summary, 'summary')[0];
+  const matchContext = {
+    ...(matchedSkills.length ? { skills: matchedSkills } : {}),
+    ...(matchedSummary ? { summary: matchedSummary } : {}),
+  };
   return {
     id,
     fullName: safe(fullName, 'name'),
@@ -31,7 +40,26 @@ export function mapPublicProfile(source: ProfileSearchDocument) {
     summary: safe(summary, 'summary'),
     skills: (skills ?? []).filter((skill) => !publicValueIssue(skill, 'skill')),
     linkedinUrl,
+    ...(Object.keys(matchContext).length ? { matchContext } : {}),
   };
+}
+
+function safeHighlights(
+  values: string[] | undefined,
+  kind: 'skill' | 'summary',
+): string[] {
+  return [
+    ...new Set(
+      (values ?? [])
+        .map(stripMarkup)
+        .map((value) => value.trim())
+        .filter((value) => value && !publicValueIssue(value, kind)),
+    ),
+  ];
+}
+
+function stripMarkup(value: string): string {
+  return value.replace(/<[^>]*>/g, '');
 }
 
 function safe(

@@ -30,7 +30,7 @@ export class ProfilesSearchService {
           : (response.hits.total?.value ?? 0);
       return {
         data: response.hits.hits.map((hit) =>
-          mapPublicProfile(hit._source as ProfileSearchDocument),
+          mapPublicProfile(hit._source as ProfileSearchDocument, hit.highlight),
         ),
         meta: {
           page: query.page,

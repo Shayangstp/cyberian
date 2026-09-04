@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { ProfileSearchPage } from '../../features/profile-search/pages/ProfileSearchPage';
+import { ProfileAnalyticsPageSkeleton } from '../../features/profile-analytics/components/ProfileAnalyticsPageSkeleton';
 import { NotFoundPage } from '../../pages/NotFoundPage';
 
 const ProfileAnalyticsPage = lazy(() =>
@@ -16,7 +17,7 @@ export function AppRoutes() {
       <Route
         path="/analytics"
         element={
-          <Suspense fallback={<p role="status">Loading analytics…</p>}>
+          <Suspense fallback={<ProfileAnalyticsPageSkeleton />}>
             <ProfileAnalyticsPage />
           </Suspense>
         }

@@ -30,4 +30,24 @@ describe('profile search URL state', () => {
         { q: 'x' },
       ).page,
     ).toBe(1));
+  it('removes cleared filters from URL and request state', () => {
+    const params = parseProfileSearchParams(
+      new URLSearchParams(
+        'q=engineer&skills=TypeScript&jobTitle=Engineer&industry=Technology',
+      ),
+    );
+    const cleared = withSearchChange(params, {
+      skills: [],
+      jobTitle: '',
+      industry: '',
+    });
+
+    expect(serializeProfileSearchParams(cleared)).toBe('q=engineer');
+    expect(cleared).toMatchObject({
+      skills: [],
+      jobTitle: '',
+      industry: '',
+      page: 1,
+    });
+  });
 });
