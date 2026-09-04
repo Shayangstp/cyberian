@@ -76,13 +76,23 @@ Open the application and supporting endpoints at:
 - API: <http://localhost:3000/api>
 - Swagger documentation: <http://localhost:3000/api/docs>
 
-For a fully containerized API and web runtime after setup:
+For a fully containerized API and web runtime, initialize the data first and then start the complete stack:
 
 ```bash
+make setup
 make docker-up
 ```
 
-The web container serves the application through Nginx and proxies `/api` to the API container. `make docker-down` stops the stack while preserving database and search volumes.
+`make setup` is required on a fresh clone and after deleting Docker volumes: it imports the dataset and rebuilds the Elasticsearch `profiles` index. `make docker-up` builds and starts the API and web containers, but does not import data or create the search index by itself.
+
+For normal restarts, use:
+
+```bash
+make docker-down
+make docker-up
+```
+
+The web container serves the application through Nginx and proxies `/api` to the API container. `make docker-down` stops the stack while preserving database and search volumes. Do not use `docker compose down -v` unless you intend to erase the local database and search index; if you do, run `make setup` again before `make docker-up`.
 
 ## Search API
 
@@ -153,7 +163,7 @@ Local defaults are documented in `.env.example`. Common settings include `API_PO
 - **Port conflict:** change the corresponding port in `.env`. If the web origin changes, update `WEB_ORIGIN` to match it.
 - **Database authentication failure after changing credentials:** an existing PostgreSQL volume retains the credentials from its first initialization. Restore those credentials or recreate the disposable local volume and rerun setup.
 - **Elasticsearch startup failure:** allocate more Docker memory and inspect `make logs`.
-- **Empty or mismatched search index:** run `pnpm search:reindex`, followed by `pnpm search:index:status`.
+- **Empty or mismatched search index:** run `make setup` after a fresh clone or deleted Docker volumes. Otherwise, run `pnpm search:reindex`, followed by `pnpm search:index:status`.
 - **CORS failure during host development:** make `WEB_ORIGIN` match the browser origin and restart the API.
 
 This setup is intended for local development. Production deployment would additionally require secret management, Elasticsearch authentication, backups and retention policies, and shared rate-limit storage when running multiple API instances.
