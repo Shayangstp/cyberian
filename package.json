@@ -1,0 +1,50 @@
+{
+  "name": "cyberian",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@9.15.9",
+  "engines": {
+    "node": ">=22 <23",
+    "pnpm": ">=9 <10"
+  },
+  "scripts": {
+    "shared:build": "pnpm --filter @cyberian/shared build",
+    "dev": "pnpm shared:build && concurrently --kill-others-on-fail --names api,web --prefix-colors blue,magenta \"pnpm --filter @cyberian/api dev\" \"pnpm --filter @cyberian/web dev\"",
+    "dev:api": "pnpm shared:build && pnpm --filter @cyberian/api dev",
+    "dev:web": "pnpm shared:build && pnpm --filter @cyberian/web dev",
+    "build": "pnpm shared:build && pnpm db:generate && pnpm --filter @cyberian/api build && pnpm --filter @cyberian/web build",
+    "db:generate": "pnpm --filter @cyberian/api db:generate",
+    "db:migrate": "pnpm --filter @cyberian/api db:migrate",
+    "db:migrate:deploy": "pnpm --filter @cyberian/api db:migrate:deploy",
+    "db:studio": "pnpm --filter @cyberian/api db:studio",
+    "data:inspect": "pnpm --filter @cyberian/api data:inspect",
+    "data:import": "pnpm --filter @cyberian/api data:import",
+    "data:audit": "pnpm --filter @cyberian/api data:audit",
+    "data:rebuild": "pnpm --filter @cyberian/api data:rebuild",
+    "search:index:create": "pnpm --filter @cyberian/api search:index:create",
+    "search:reindex": "pnpm --filter @cyberian/api search:reindex",
+    "search:index:status": "pnpm --filter @cyberian/api search:index:status",
+    "infra:up": "docker compose up -d --wait postgres elasticsearch",
+    "infra:down": "docker compose stop postgres elasticsearch",
+    "setup": "pnpm --filter @cyberian/api exec tsx ../../scripts/setup.ts",
+    "lint": "pnpm shared:build && pnpm db:generate && eslint . --max-warnings 0",
+    "test": "pnpm shared:build && pnpm --filter @cyberian/api test && pnpm --filter @cyberian/web test",
+    "typecheck": "tsc -p tsconfig.json --noEmit && pnpm shared:build && pnpm db:generate && pnpm --filter @cyberian/api typecheck && pnpm --filter @cyberian/web typecheck",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "check": "pnpm format:check && pnpm lint && pnpm typecheck && pnpm test && pnpm build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/node": "^22",
+    "concurrently": "^9.1.2",
+    "eslint": "^9.20.0",
+    "eslint-config-prettier": "^10.0.1",
+    "eslint-plugin-react": "^7.37.4",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.0.0",
+    "prettier": "^3.5.3",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0"
+  }
+}

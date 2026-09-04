@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+coverage
+.vite
+*.tsbuildinfo
+pnpm-lock.yaml
+data/raw
+data/processed
